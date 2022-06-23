@@ -16,3 +16,23 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+
+let pending = [];
+let applied = [];
+let uid = "User" + getCurrentTime().toString() + Math.floor(Math.random() * Math.pow(10, 5)).toString();
+let lastKeyPress;
+let lastChange;
+let lastUpdated;
+let prevContentUpdated = 0;
+let contentCheck = 0;
+let lastInputTimeStamp = 0;
+let activeVertex = false;
+let stack = {
+  undo: [],
+  redo: []
+};
+let userCache = {};
+let actvStyles = [];
+
+let contentCheckDelay = 5;
+let syncCount = 0;
