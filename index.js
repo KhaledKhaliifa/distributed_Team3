@@ -211,7 +211,29 @@ function actvtBtns() {
     document.getElementById(actvStyles[i]).classList.add("button-active");
   }
 }
+function getActvStyles(el) {
 
+  let caretPos = getCrsrPos(el);
+
+  // Determine what the current active styles should be:
+  // No text is selected; get the style of the character before:
+  if (caretPos.start === caretPos.end) {
+    return (el.childNodes[caretPos.start - 1] && el.childNodes[caretPos.start - 1].classList) ? [...el.childNodes[caretPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+
+  // Text is being selected; get the styles that apply to all characters in the selection:
+  } else {
+
+    // Get the styles of the first character in the selection:
+    let styles = (el.childNodes[caretPos.start] && el.childNodes[caretPos.start].classList) ? [...el.childNodes[caretPos.start].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+
+    // Remove the style if it doesn't apply to all of the characters in the selection:
+    for (let i = caretPos.start + 1; i < caretPos.end; i++) {
+      let indexedStyles = (el.childNodes[i] && el.childNodes[i].classList) ? [...el.childNodes[i].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+      styles = styles.filter(cl => indexedStyles.indexOf(cl) !== -1);
+    }
+    return styles;
+  }
+}
 
 
 
