@@ -37,6 +37,23 @@ let actvStyles = [];
 let contentCheckDelay = 5;
 let syncCount = 0;
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 document.getElementById("editor").addEventListener("input", function(e) {
 
   // Update cursor position in Firebase (after event finishes):
