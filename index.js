@@ -382,6 +382,122 @@ document.getElementById("editor").addEventListener("input", function(e) {
     return;
   }
 });
+document.getElementById("editor").addEventListener("paste", function(e) {
+
+  // Update cursor position in Firebase (after event finishes):
+  setTimeout(function() {
+    set(ref(db, `users/${uid}/cursor`), getCrsrPos(document.getElementById("editor")));
+  }, 0);
+
+  let caretPos = getCrsrPos(this);
+
+  // Clean pasted text:
+  e.preventDefault();
+  let textToPaste = (e.clipboardData.getData("text/plain")).split("\r\n").join("\n");
+
+  // Push pasted text:
+  if (caretPos.start === caretPos.end) {
+    buffer({
+      vertex: "editor",
+      action: "insert",
+      content: textToPaste,
+      index: {
+        start: caretPos.end,
+        end: caretPos.end
+      },
+      surrounding: {
+        before: this.textContent[caretPos.end - 1] || false,
+        after: (caretPos.end === this.textContent.length - 1 && this.textContent[caretPos.end] === "\n") ? false : (this.textContent[caretPos.end] || false)
+      }
+    });
+
+    lastKeyPress = getCurrentTime();
+    pushChanges(lastKeyPress);
+  } else {
+    buffer({
+      vertex: "editor",
+      action: "replace",
+      contentPre: this.textContent.substring(caretPos.start, caretPos.end),
+      content: textToPaste,
+      index: {
+        start: caretPos.start,
+        end: caretPos.end
+      },
+      surrounding: {
+        before: this.textContent[caretPos.start - 1] || false,
+        after: (caretPos.end === this.textContent.length - 1 && this.textContent[caretPos.end] === "\n") ? false : (this.textContent[caretPos.end] || false)
+      }
+    });
+
+    lastKeyPress = getCurrentTime();
+    pushChanges(lastKeyPress);
+  }
+
+  // Insert the text:
+  setText(this, textToPaste, caretPos);
+
+});
+
+document.getElementById("editor").addEventListener("cut", function(e) {
+
+  // Update cursor position in Firebase (after event finishes):
+  setTimeout(function() {
+    set(ref(db, `users/${uid}/cursor`), getCrsrPos(document.getElementById("editor")));
+  }, 0);
+
+  let caretPos = getCrsrPos(this);
+
+  // Push removed text:
+  if (caretPos.start === caretPos.end)
+    return;
+
+  buffer({
+    vertex: "editor",
+    action: "replace",
+    contentPre: this.textContent.substring(caretPos.start, caretPos.end),
+    content: "",
+    index: {
+      start: caretPos.start,
+      end: caretPos.end
+    },
+    surrounding: {
+      before: this.textContent[caretPos.start - 1] || false,
+      after: (caretPos.end === this.textContent.length - 1 && this.textContent[caretPos.end] === "\n") ? false : (this.textContent[caretPos.end] || false)
+    }
+  });
+
+  lastKeyPress = getCurrentTime();
+  pushChanges(lastKeyPress);
+
+});
+
+document.getElementById("editor").addEventListener("focus", function(e) {
+
+  // Set this to be the active vertex:
+  activeVertex = "editor";
+  setTimeout(function() {
+    set(ref(db, `users/${uid}/cursor`), getCrsrPos(this));
+    set(ref(db, `users/${uid}/vertex`), "editor");
+    set(ref(db, `users/${uid}/changed`), getCurrentTime());
+    set(ref(db, `users/${uid}/status`), "active");
+  }, 0);
+
+});
+
+document.getElementById("editor").addEventListener("blur", function(e) {
+
+  // Remove this from being the active vertex:
+  setTimeout(function() {
+    if (!document.activeElement.classList.contains("link-creator-element")) {
+      activeVertex = false;
+      set(ref(db, `users/${uid}/cursor`), false);
+      set(ref(db, `users/${uid}/vertex`), false);
+      set(ref(db, `users/${uid}/changed`), getCurrentTime());
+      set(ref(db, `users/${uid}/status`), "active");
+    }
+  }, 0);
+
+});
 
 
 
