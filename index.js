@@ -139,6 +139,78 @@ window.addEventListener("load", async function() {
   }, 5 * 1000);
 });
 
+async function sync(el, content) {
+
+  // Ignore if the update is old:
+  if (content.updated >= prevContentUpdated) {
+    prevContentUpdated = content.updated;
+  } else {
+    return;
+  }
+
+  // Don't sync while applying changes:
+  if (getCurrentTime() - lastChange <= 1000)
+    return;
+
+  // Don't sync while the user is typing:
+  if (getCurrentTime() - lastKeyPress <= 1000)
+    return;
+
+  // Ignore if the update was by the same user:
+  if (content.uid === uid)
+    return;
+
+  // Check if the client is synced (this checks the text, styling, and links):
+  if (content.text !== el.textContent || content.style.bold !== acquireMetaTag(el, "bold") || content.style.italic !== acquireMetaTag(el, "italic") || content.style.underline !== acquireMetaTag(el, "underline") || content.style.strikethrough !== acquireMetaTag(el, "strikethrough") || JSON.stringify(content.links) !== JSON.stringify(acquireMetaTag(el, "links"))) {
+
+    // Client is not synced; take note of this:
+    contentCheck++;
+
+    // If the client is not synced for 5 times in total (~1.25 seconds), sync them:
+    if (contentCheck >= contentCheckDelay) {
+
+      console.warn("Sync");
+
+      // Store the caret position to perserve it for later:
+      let caretPos = getCrsrPos(document.getElementById("editor"));
+
+      // Grab user data to sync cursors:
+      let userData = (await acquireData("users", function(err) { console.error(err); })) || {};
+
+      // Sync everything:
+      document.getElementById("editor").textContent = "";
+      setText(el, content.text + (content.text[content.text.length - 1] !== "\n" ? "\n" : ""), { start: 0, end: 0 }, true);
+      applyStyle(el, content.style);
+      overrideLinks(el, content.links);
+      setCrsrs(userData);
+      setCrsrPos(el, caretPos);
+
+      contentCheck = 0;
+      syncCount++;
+
+      // Disconnect the user if sync is unable to fix the issue:
+      if (syncCount >= 10)
+        remove(ref(db, `users/${uid}`));
+    }
+
+  // Client is synced; reset the counter:
+  } else {
+    contentCheck = 0;
+    syncCount = 0;
+  }
+}
+
+function actvtBtns() {
+
+  // Reset active classes:
+  while (document.getElementsByClassName("button-active").length > 0)
+    document.getElementsByClassName("button-active")[0].classList.remove("button-active");
+
+  // Add the classes back to any active styles:
+  for (let i = 0; i < actvStyles.length; i++) {
+    document.getElementById(actvStyles[i]).classList.add("button-active");
+  }
+}
 
 
 
