@@ -550,3 +550,204 @@ function buffer(c, isUndoRedo) {
 function getCurrentTime() {
   return Date.now();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function applyCSSStyle(clas, style) {
+
+  let rules = document.styleSheets[0].cssRules;
+
+  // Change the rule if it already exists:
+  for (let i = 0; i < rules.length; i++) {
+    if (rules[i].selectorText === `.${clas}`) {
+      rules[i].style = style;
+      return;
+    }
+  }
+
+  // Insert new rule if it doesn't already exist:
+  document.styleSheets[0].insertRule(`.${clas} { ${style} }`, 0);
+}
+
+// Styling and Link button event handlers:
+document.getElementById("bold").addEventListener("mousedown", function(e) {
+  e.preventDefault();
+
+  if (!document.activeElement.id)
+    return;
+
+  let crsrPos = getCrsrPos(document.activeElement);
+  if (crsrPos.start === crsrPos.end) {
+    if (actvStyles.indexOf("bold") === -1) {
+      actvStyles.push("bold");
+    } else {
+      actvStyles.splice(actvStyles.indexOf("bold"), 1);
+    }
+
+    actvtBtns();
+  } else {
+    applySelectedStyle(document.activeElement, "bold");
+  }
+});
+document.getElementById("italic").addEventListener("mousedown", function(e) {
+  e.preventDefault();
+
+  if (!document.activeElement.id)
+    return;
+
+  let crsrPos = getCrsrPos(document.activeElement);
+  if (crsrPos.start === crsrPos.end) {
+    if (actvStyles.indexOf("italic") === -1) {
+      actvStyles.push("italic");
+    } else {
+      actvStyles.splice(actvStyles.indexOf("italic"), 1);
+    }
+
+    actvtBtns();
+  } else {
+    applySelectedStyle(document.activeElement, "italic");
+  }
+});
+document.getElementById("underline").addEventListener("mousedown", function(e) {
+  e.preventDefault();
+
+  if (!document.activeElement.id)
+    return;
+
+  let crsrPos = getCrsrPos(document.activeElement);
+  if (crsrPos.start === crsrPos.end) {
+    if (actvStyles.indexOf("underline") === -1) {
+      actvStyles.push("underline");
+    } else {
+      actvStyles.splice(actvStyles.indexOf("underline"), 1);
+    }
+
+    actvtBtns();
+  } else {
+    applySelectedStyle(document.activeElement, "underline");
+  }
+});
+document.getElementById("strikethrough").addEventListener("mousedown", function(e) {
+  e.preventDefault();
+
+  if (!document.activeElement.id)
+    return;
+
+  let crsrPos = getCrsrPos(document.activeElement);
+  if (crsrPos.start === crsrPos.end) {
+    if (actvStyles.indexOf("strikethrough") === -1) {
+      actvStyles.push("strikethrough");
+    } else {
+      actvStyles.splice(actvStyles.indexOf("strikethrough"), 1);
+    }
+
+    actvtBtns();
+  } else {
+    applySelectedStyle(document.activeElement, "strikethrough");
+  }
+});
+document.getElementById("link").addEventListener("mousedown", function(e) {
+  e.preventDefault();
+
+  // Close old link creators:
+  while (document.getElementsByClassName("link-creator").length > 0) {
+    document.getElementsByClassName("link-creator")[0].remove();
+  }
+  clrSelection();
+
+  // Can't create a link if no element is selected:
+  if (!document.activeElement.id) // [NOTE] update in future for better checks
+    return;
+
+  let crsrPos = getCrsrPos(document.activeElement);
+
+  // Open a new link creator if there is a selection:
+  if (crsrPos.start !== crsrPos.end)
+    createDocLink(document.getElementById("editor"));
+});
+
+function applyStyle(el, styles) {
+
+  // Override all styles with the passed in "styles":
+  for (let style in styles) {
+    for (let i = 0; i < styles[style].length; i++) {
+      if (styles[style][i] === "X") {
+        applySelectedStyle(el, style, { start: i, end: i + 1 }, true);
+      }
+    }
+  }
+}
+
+function applySelectedStyle(el, style, pos, addStyle) {
+
+  let childNodeSpans = el.childNodes;
+  let localChanges = pos ? false : true;
+
+  // Get current caret position:
+  if (!pos)
+    pos = getCrsrPos(el);
+
+  // Check if style needs to be added or removed:
+  if (addStyle === undefined) {
+    addStyle = false;
+
+    for (let i = pos.start; i < pos.end; i++) {
+      if (!childNodeSpans[i].classList.contains(style)) {
+        addStyle = true;
+        break;
+      }
+    }
+  }
+
+  // If no pos is passed in, assume that this was a local change:
+  if (localChanges) {
+
+    // Update the active styling:
+    setTimeout(function() {
+      if (document.activeElement.id) { // [NOTE]
+        actvStyles = getActvStyles(document.activeElement);
+        actvtBtns();
+      }
+    }, 0);
+
+    // Push changes:
+    buffer({
+      vertex: "editor",
+      action: "style",
+      contentPre: el.textContent.substring(pos.start, pos.end),
+      content: (addStyle ? "" : "-") + style,
+      index: {
+        start: pos.start,
+        end: pos.end
+      },
+      surrounding: {
+        before: el.textContent[pos.start - 1] || false,
+        after: (pos.end === el.textContent.length - 1 && el.textContent[pos.end] === "\n") ? false : (el.textContent[pos.end] || false)
+      }
+    });
+
+    lastKeyPress = getCurrentTime();
+    pushChanges(lastKeyPress);
+  }
+
+  // Apply style:
+  for (let i = pos.start; i < pos.end; i++) {
+    if (addStyle && !childNodeSpans[i].classList.contains(style)) {
+      childNodeSpans[i].classList.add(style);
+    } else if (!addStyle) {
+      childNodeSpans[i].classList.remove(style);
+    }
+  }
+}
