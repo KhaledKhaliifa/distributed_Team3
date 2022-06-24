@@ -38,6 +38,108 @@ let contentCheckDelay = 5;
 let syncCount = 0;
 
 
+window.addEventListener("load", async function() {
+
+  // If the client disconnects, clear their user data:
+  onDisconnect(ref(db, `users/${uid}`)).remove();
+
+  // Get the stored text for the editor:
+  let content = (await acquireData("vertexes/editor/content", function(err) { console.error(err); })) || { vertex: "editor", text: "\n", style: { bold: "", italic: "", underline: "", strikethrough: "" }, uid: "", updated: 0 };
+  let userData = (await acquireData("users", function(err) { console.error(err); })) || {};
+  setText(document.getElementById("editor"), content.text + (content.text[content.text.length - 1] !== "\n" ? "\n" : ""), { start: 0, end: 0 }, true);
+  applyStyle(document.getElementById("editor"), content.style);
+  overrideLinks(document.getElementById("editor"), content.links);
+  setCrsrs(userData);
+
+  // Update the "applied" values:
+  let changesObj = await acquireData("changes", function(err) { console.error(err); });
+  for (let i in changesObj) {
+    applied.push(i);
+  }
+
+  // Set the user data:
+  set(ref(db, `users/${uid}`), {
+    status: "active",
+    vertex: false,
+    cursor: false,
+    changed: new Date().getTime(),
+    updated: new Date().getTime()
+  });
+
+  // Get user data:
+  onValue(ref(db, "users"), (snapshot) => {
+    const userData = snapshot.val();
+
+    if (uid === "_disconnected")
+      return;
+
+    // Check for disconnects:
+    if (!userData || !userData[uid] || !userData[uid].status) {
+      uid = "_disconnected";
+      alert("You have been disconnected from the server.\n\nIf this is a recurring issue, there might be something wrong with the editor's content or your internet connection."); // [NOTE]
+      location.reload(true);
+      return;
+    }
+
+    // Remove disconnected user data:
+    if (userData["_disconnected"]) {
+      remove(ref(db, `users/_disconnected`));
+      delete userData["_disconnected"];
+    }
+
+    // Update user status:
+    let statusData = {
+      active: 0,
+      idle: 0
+    };
+    for (let u in userData) {
+      statusData[userData[u].status]++;
+    }
+
+    document.getElementsByClassName("users")[0].innerHTML = `Active: ${statusData.active} &nbsp&nbsp|&nbsp&nbsp Idle: ${statusData.idle}`;
+
+    // Update cursor positions:
+    setCrsrs(userData);
+
+  });
+
+  // Get new changes coming in:
+  onValue(ref(db, "changes"), (snapshot) => {
+    const changes = snapshot.val();
+    checkChanges(changes);
+  });
+
+  // Check periodically to ensure the clients are all synced properly:
+  setInterval(async function() {
+
+    let content = (await acquireData("vertexes/editor/content", function(err) { console.error(err); })) || { vertex: "editor", text: "\n", style: { bold: "", italic: "", underline: "", strikethrough: "" }, uid: "", updated: 0 };
+    sync(document.getElementById("editor"), content);
+  }, 250);
+
+  // Check for idle users and remove disconnected users:
+  setInterval(async function() {
+
+    let users = (await acquireData("users", function(err) { console.error(err); })) || { vertex: "editor", text: "\n", style: { bold: "", italic: "", underline: "", strikethrough: "" }, uid: "", updated: 0 };
+
+    // Check if a user is idle or should be kicked:
+    for (let u in users) {
+
+      // Set status to idle if no changes have been made for more than 5 minutes:
+      if (users[u].status === "active" && getCurrentTime() - users[u].changed >= 5 * 60 * 1000) {
+        set(ref(db, `users/${u}/status`), "idle");
+      }
+
+      // Remove user from the database if they have not recieved an update for more than 10 minutes [NOTE when implementing into real thing, take the last updated time into consideration (for example, a user should only be kicked if they have not recieved an update 5 minutes after the last time the content itself was updated)]:
+      if (!users[u].status || getCurrentTime() - users[u].updated >= 10 * 60 * 1000) {
+        remove(ref(db, `users/${u}`));
+      }
+    }
+
+
+  }, 5 * 1000);
+});
+
+
 
 
 
