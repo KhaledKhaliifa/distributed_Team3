@@ -382,3 +382,55 @@ document.getElementById("editor").addEventListener("input", function(e) {
     return;
   }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function acquireData(path, err) {
+
+  let data;
+  const dbref = ref(db);
+
+  await get(child(dbref, path)).then((snapshot) => {
+    if (!snapshot.exists())
+      return;
+
+    data = snapshot.val();
+  }).catch((error) => {
+    err(error);
+    console.error(error);
+  });
+
+  return data;
+}
+
+function buffer(c, isUndoRedo) {
+
+  c.uid = uid;
+  c.timestamp = getCurrentTime();
+  c.style = !isUndoRedo ? actvStyles : false;
+
+  pending.push(c);
+
+  // Handle the undo/redo stack:
+  if (!isUndoRedo) {
+    stack.undo.push(c);
+    stack.redo = [];
+  }
+}
+
+function getCurrentTime() {
+  return Date.now();
+}
