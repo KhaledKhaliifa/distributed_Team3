@@ -1017,6 +1017,53 @@ function buffer(c, isUndoRedo) {
   }
 }
 
+function getCrsrPos(el) {
+
+  // If no element is focused, return:
+  if (el !== document.activeElement)
+    return false;
+
+  // Get the current range:
+  let range = window.getSelection().getRangeAt(0);
+
+  // Find the starting position of the range:
+  let caretRangeStart = range.cloneRange();
+  caretRangeStart.selectNodeContents(el);
+  caretRangeStart.setEnd(range.startContainer, range.startOffset);
+
+  // Find the ending position of the range:
+  let caretRangeEnd = range.cloneRange();
+  caretRangeEnd.selectNodeContents(el);
+  caretRangeEnd.setEnd(range.endContainer, range.endOffset);
+
+  // Return the position data:
+  return {
+    start: caretRangeStart.toString().length,
+    end: caretRangeEnd.toString().length
+  };
+
+}
+
+function setCrsrPos(el, pos) {
+
+  // If the element is not the currently focused element, ignore this attempt to set the caret position:
+  if (el !== document.activeElement)
+    return;
+
+  // Create a new selection range:
+  let range = document.createRange();
+  let sel = window.getSelection();
+
+  // Set the start and end of the selection range:
+  range.setStart(el.childNodes[Math.min(pos.start, el.textContent.length - 1)], pos.start === el.textContent.length ? 1 : 0);
+  range.setEnd(el.childNodes[Math.min(pos.end, el.textContent.length - 1)], pos.end === el.textContent.length ? 1 : 0);
+
+  // Apple the selection range:
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+}
+
 function getCurrentTime() {
   return Date.now();
 }
