@@ -1203,6 +1203,29 @@ function getCurrentTime() {
   return Date.now();
 }
 
+function stringToColor(str) {
+  
+  // Start t on 1:
+  let t = 1;
+  for (let i = 0; i < str.length; i++) {
+    // Vary t based on the contents of the string so each string is (mostly) unique:
+    t += 1;
+    t *= str.charCodeAt(i);
+    t %= 16777216;
+  }
+
+  // Return the color (pad with 4's if not long enough):
+
+  let hex = `#${t.toString(16).padStart(6, "4")}`;
+
+  // Hex values starting with "D" (char code = 100) or higher are too bright:
+  for (let i = 1; i < hex.length; i += 2) {
+    if (hex.charCodeAt(i) >= 100) {
+      hex = hex.substring(0, i) + String.fromCharCode(hex.charCodeAt(i) - 3) + hex.substring(i + 1);
+    }
+  }
+  return hex;
+}
   
 function partition(arr, lo, hi, by) {
   let pivot = (by ? arr[hi][by] : arr[hi]);
