@@ -507,64 +507,6 @@ document.getElementById("editor").addEventListener("blur", function(e) {
 
 
 
-
-
-
-
-
-
-
-async function acquireData(path, err) {
-
-  let data;
-  const dbref = ref(db);
-
-  await get(child(dbref, path)).then((snapshot) => {
-    if (!snapshot.exists())
-      return;
-
-    data = snapshot.val();
-  }).catch((error) => {
-    err(error);
-    console.error(error);
-  });
-
-  return data;
-}
-
-function buffer(c, isUndoRedo) {
-
-  c.uid = uid;
-  c.timestamp = getCurrentTime();
-  c.style = !isUndoRedo ? actvStyles : false;
-
-  pending.push(c);
-
-  // Handle the undo/redo stack:
-  if (!isUndoRedo) {
-    stack.undo.push(c);
-    stack.redo = [];
-  }
-}
-
-function getCurrentTime() {
-  return Date.now();
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function applyCSSStyle(clas, style) {
 
   let rules = document.styleSheets[0].cssRules;
@@ -750,4 +692,57 @@ function applySelectedStyle(el, style, pos, addStyle) {
       childNodeSpans[i].classList.remove(style);
     }
   }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function acquireData(path, err) {
+
+  let data;
+  const dbref = ref(db);
+
+  await get(child(dbref, path)).then((snapshot) => {
+    if (!snapshot.exists())
+      return;
+
+    data = snapshot.val();
+  }).catch((error) => {
+    err(error);
+    console.error(error);
+  });
+
+  return data;
+}
+
+function buffer(c, isUndoRedo) {
+
+  c.uid = uid;
+  c.timestamp = getCurrentTime();
+  c.style = !isUndoRedo ? actvStyles : false;
+
+  pending.push(c);
+
+  // Handle the undo/redo stack:
+  if (!isUndoRedo) {
+    stack.undo.push(c);
+    stack.redo = [];
+  }
+}
+
+function getCurrentTime() {
+  return Date.now();
 }
