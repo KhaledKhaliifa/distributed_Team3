@@ -1237,6 +1237,153 @@ function applySelectedStyle(el, style, pos, addStyle) {
   }
 }
 
+function createDocLink(el, link) {
+
+  let childNodeSpans = el.childNodes;
+  let crsrPos = getCrsrPos(el);
+
+  // Display that the text is still selected:
+  for (let i = crsrPos.start; i < crsrPos.end; i++) {
+    childNodeSpans[i].classList.add("selected");
+  }
+  setTimeout(function() {
+    set(ref(db, `users/${uid}/vertex`), el.id);
+    set(ref(db, `users/${uid}/cursor`), crsrPos);
+  }, 0);
+
+  // Get the position of the selected text on the display:
+  let selectionPos = getSelectionPosition(crsrPos);
+
+  // Create the div to insert a link:
+  let div = document.createElement("div");
+  div.innerHTML = `<div class="link-creator link-creator-element" style="position: absolute; left: calc(${selectionPos.x + selectionPos.w / 2}px - 200px); top: calc(${selectionPos.y + selectionPos.h}px + 20px);">
+    <div class="link-creator-input link-creator-element" contenteditable="true">
+      ${link || ""}
+    </div>
+    <div class="link-creator-preview link-creator-element">
+      <img src="./resources/icons/editor/preview.svg" class="link-creator-element">
+    </div>
+    <div class="link-creator-cancel link-creator-element">
+      <img src="./resources/icons/close.svg" class="link-creator-element">
+    </div>
+    <div class="link-creator-confirm link-creator-element">
+      <img src="./resources/icons/confirm.svg" class="link-creator-element">
+    </div>
+  </div>`;
+
+  // Display it to the user:
+  document.body.appendChild(div.childNodes[0]); // [NOTE] when implementing into the actual editor, make sure that the link creator is fixed to the editor element itself, so it doesn't move if the page is scrolled
+
+  // Focus the input and add event listeners:
+  let createLink = document.getElementsByClassName("link-creator")[document.getElementsByClassName("link-creator").length - 1];
+
+  if (!link)
+    createLink.getElementsByClassName("link-creator-input")[0].focus();
+
+  // Clean pasted text:
+  createLink.addEventListener("paste", function(e) {
+    e.preventDefault();
+    let textToPaste = e.clipboardData.getData("text/plain");
+    document.execCommand("insertHTML", false, textToPaste);
+  });
+
+  // Preview button:
+  createLink.getElementsByClassName("link-creator-preview")[0].addEventListener("click", function() {
+    window.open(createLink.getElementsByClassName("link-creator-input")[0].textContent.trim(), "_blank");
+  });
+
+  // Close button:
+  createLink.getElementsByClassName("link-creator-cancel")[0].addEventListener("click", function() {
+    setLink(el, el.childNodes[crsrPos.start].dataset.href, crsrPos, false, true);
+    createLink.remove();
+    clrSelection();
+    el.focus();
+    setCrsrPos(el, { start: crsrPos.end, end: crsrPos.end });
+  });
+
+  // Confirm button:
+  createLink.getElementsByClassName("link-creator-confirm")[0].addEventListener("click", function() {
+    if (createLink.getElementsByClassName("link-creator-input")[0].textContent.trim() !== "")
+      setLink(el, createLink.getElementsByClassName("link-creator-input")[0].textContent.trim(), crsrPos, true, true);
+    createLink.remove();
+    clrSelection();
+    el.focus();
+    setCrsrPos(el, { start: crsrPos.end, end: crsrPos.end });
+  });
+
+  // Handle enter:
+  createLink.getElementsByClassName("link-creator-input")[0].addEventListener("keydown", function(e) {
+    if (e.keyCode === 13) {
+      e.preventDefault();
+      if (createLink.getElementsByClassName("link-creator-input")[0].textContent.trim() !== "")
+        setLink(el, createLink.getElementsByClassName("link-creator-input")[0].textContent.trim(), crsrPos, true, true);
+      createLink.remove();
+      clrSelection();
+      el.focus();
+      setCrsrPos(el, { start: crsrPos.end, end: crsrPos.end });
+    }
+  });
+}
+
+function clrSelection() {
+
+  // Clear all elements with the "selected" class:
+  while (document.getElementsByClassName("selected").length > 0)
+    document.getElementsByClassName("selected")[0].classList.remove("selected");
+}
+
+function overrideLinks(el, links) {
+
+  // Override all links with the passed in "links":
+  for (let i in links) {
+    if (links[i]) {
+      setLink(el, links[i], { start: Number(i), end: Number(i) + 1 }, true, false);
+    }
+  }
+}
+
+function setLink(el, link, pos, addLink, localChange) {
+
+  let childNodeSpans = el.childNodes;
+
+  // Get current caret position:
+  if (!pos)
+    pos = getCrsrPos(el);
+
+  // If no pos is passed in, assume that this was a local change:
+  if (localChange) {
+
+    // Push changes:
+    buffer({
+      vertex: "editor",
+      action: addLink ? "link" : "-link",
+      contentPre: el.textContent.substring(pos.start, pos.end),
+      content: link || "",
+      index: {
+        start: pos.start,
+        end: pos.end
+      },
+      surrounding: {
+        before: el.textContent[pos.start - 1] || false,
+        after: (pos.end === el.textContent.length - 1 && el.textContent[pos.end] === "\n") ? false : (el.textContent[pos.end] || false)
+      }
+    });
+
+    lastKeyPress = getCurrentTime();
+    pushChanges(lastKeyPress);
+  }
+
+  // Apply link:
+  for (let i = pos.start; i < pos.end; i++) {
+    if (addLink) {
+      childNodeSpans[i].classList.add("link");
+      childNodeSpans[i].dataset.href = link;
+    } else {
+      childNodeSpans[i].classList.remove("link");
+      childNodeSpans[i].removeAttribute("data-href");
+    }
+  }
+}
 
 
 
