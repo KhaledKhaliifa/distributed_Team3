@@ -1095,3 +1095,7 @@ function quicksort(arr, lo, hi, by) {
     quicksort(arr, p + 1, hi, by);
   }
 }
+
+function copyObj(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
