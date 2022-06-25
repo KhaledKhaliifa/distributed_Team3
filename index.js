@@ -255,6 +255,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
   while (document.getElementsByClassName("link-creator").length > 0) {
     document.getElementsByClassName("link-creator")[0].remove();
   }
+  
   clrSelection();
 
   // Prevent defualt behavior of most keys (alpha-numerical, delete/backspace, undo/redo, styling keys):
@@ -282,6 +283,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         actvtBtns();
 
         buffer({
+
           vertex: "editor",
           action: "delete",
           contentPre: this.textContent[crsrPos.start - (e.keyCode === 8 ? 1 : 0)],
@@ -293,6 +295,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
             before: this.textContent[crsrPos.start - 1 - (e.keyCode === 8 ? 1 : 0)] || false,
             after: ((crsrPos.start + (e.keyCode === 46 ? 1 : 0)) === this.textContent.length - 1 && this.textContent[crsrPos.start + (e.keyCode === 46 ? 1 : 0)] === "\n") ? false : (this.textContent[crsrPos.start + (e.keyCode === 46 ? 1 : 0)] || false)
           }
+
         });
 
         lastKeyPress = getCurrentTime();
@@ -301,7 +304,8 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         setText(this, "", { start: crsrPos.start - (e.keyCode === 8 ? 1 : 0), end: crsrPos.end + (e.keyCode === 46 ? 1 : 0) });
 
       // Handle Ctrl + Backspace / Delete:
-      } else {
+      } 
+      else {
 
         // Determine what index to delete up to:
         let breakCharacters = " `~!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?\n".split("");
