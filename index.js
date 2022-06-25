@@ -772,6 +772,120 @@ document.getElementById("editor").addEventListener("blur", function(e) {
   }, 0);
 
 });
+document.body.addEventListener("mousedown", function(e) {
+
+  // Close the link popup if it is clicked off of:
+  if (e.target.id !== "link" && !e.target.classList.contains("link-creator-element")) {
+    while (document.getElementsByClassName("link-creator").length > 0) {
+      document.getElementsByClassName("link-creator")[0].remove();
+    }
+    clrSelection();
+  }
+
+  let preCrsrPos = document.activeElement.id ? getCrsrPos(document.activeElement) : false; // [NOTE] when implementing into actual editor, additional id checks will need to be made (to ensure it is a valid vertex field)
+  let preVertex = document.activeElement.id || false; // [NOTE]
+
+  // Check for links and update cursor position in Firebase (after event finishes):
+  setTimeout(function() {
+
+    // Ensure that a valid vertex was clicked on:
+    if (document.activeElement.id) { // [NOTE] when implementing into actual editor, additional id checks will need to be made (to ensure it is a valid vertex field)
+
+      let crsrPos = document.activeElement.id ? getCrsrPos(document.activeElement) : false; // [NOTE] when implementing into actual editor, additional id checks will need to be made (to ensure it is a valid vertex field)
+
+      // Check if the element clicked is a link:
+      if (crsrPos.start === crsrPos.end && document.activeElement.childNodes[crsrPos.end].dataset.href) { // [NOTE] when implementing into actual editor, additional id checks will need to be made (to ensure it is a valid vertex field)
+
+        // Find the start and the end of the link, then select it:
+        let start, end, spans = document.activeElement.childNodes;
+        for (start = crsrPos.start; start > 0; start--) {
+          if (spans[start - 1].dataset.href !== spans[crsrPos.start].dataset.href)
+            break;
+        }
+        for (end = crsrPos.start; end < document.activeElement.textContent.length; end++) {
+          if (spans[end].dataset.href !== spans[crsrPos.start].dataset.href)
+            break;
+        }
+
+        setCrsrPos(document.activeElement, { start: start, end: end });
+
+        // Once this is done, open the link editor:
+        createDocLink(document.activeElement, document.activeElement.childNodes[crsrPos.end].dataset.href);
+      }
+
+      if (preCrsrPos.start !== crsrPos.start || preCrsrPos.end !== crsrPos.end || preVertex !== document.activeElement.id) {
+        actvStyles = getActvStyles(document.activeElement);
+        actvtBtns();
+      }
+
+      // Update cursor position in Firebase:
+      set(ref(db, `users/${uid}/cursor`), crsrPos);
+      set(ref(db, `users/${uid}/changed`), getCurrentTime());
+      set(ref(db, `users/${uid}/status`), "active");
+    } else {
+      actvStyles = [];
+    }
+  }, 0);
+
+});
+let updateThrottledCrsr = throttled(function() {
+  if (!document.activeElement.id || document.activeElement.classList.contains("link-creator-element"))
+    return;
+
+  set(ref(db, `users/${uid}/cursor`), getCrsrPos(document.activeElement));
+  set(ref(db, `users/${uid}/changed`), getCurrentTime());
+  set(ref(db, `users/${uid}/status`), "active");
+}, 100);
+document.body.addEventListener("mousemove", function(e) {
+
+  let preCrsrPos = document.activeElement.id ? getCrsrPos(document.activeElement) : false; 
+  let preVertex = document.activeElement.id || false; // [NOTE]
+
+  // Update cursor position in Firebase (after event finishes):
+  setTimeout(function() {
+
+    // Ensure that a valid vertex was clicked on:
+    if (e.buttons === 1 && document.activeElement.id && !document.activeElement.classList.contains("link-creator-element")) { 
+
+      let crsrPos = document.activeElement.id ? getCrsrPos(document.activeElement) : false;
+
+      // Update active styles:
+      if (preCrsrPos.start !== crsrPos.start || preCrsrPos.end !== crsrPos.end || preVertex !== document.activeElement.id) {
+        actvStyles = getActvStyles(document.activeElement);
+        actvtBtns();
+      }
+
+      // Update cursor position (throttled so it doesn't send too many updates to Firebase at once):
+      updateThrottledCrsr();
+    }
+  }, 0);
+
+});
+document.body.addEventListener("mouseup", function() {
+
+  let preCaretPos = document.activeElement.id ? getCrsrPos(document.activeElement) : false; // [NOTE] when implementing into actual editor, additional id checks will need to be made (to ensure it is a valid vertex field)
+  let preVertex = document.activeElement.id || false; // [NOTE]
+
+  // Update cursor position in Firebase (after event finishes):
+  setTimeout(function() {
+
+    // Ensure that a valid vertex was clicked on:
+    if (document.activeElement.id && !document.activeElement.classList.contains("link-creator-element")) { // [NOTE] when implementing into actual editor, additional id checks will need to be made (to ensure it is a valid vertex field)
+
+      let caretPos = document.activeElement.id ? getCrsrPos(document.activeElement) : false; // [NOTE]
+
+      if (preCaretPos.start !== caretPos.start || preCaretPos.end !== caretPos.end || preVertex !== document.activeElement.id) {
+        actvStyles = getActvStyles(document.activeElement);
+        actvtBtns();
+      }
+
+      set(ref(db, `users/${uid}/cursor`), getCrsrPos(document.activeElement));
+      set(ref(db, `users/${uid}/changed`), getCurrentTime());
+      set(ref(db, `users/${uid}/status`), "active");
+    }
+  }, 0);
+
+});
 
 
 
