@@ -1251,6 +1251,63 @@ function applySelectedStyle(el, style, pos, addStyle) {
 
 
 
+async function pushChanges(t) {
+
+  // Check for changes on the server side:
+  let changesObj = await acquireData("changes", function(err) { console.error(err); });
+
+  // This will check for changes and apply them if found; otherwise, the function will return false:
+  if (!checkChanges(changesObj, t)) {
+
+    // No changes to handle; push pending changes:
+    let changedVertexes = [];
+
+    if (document.activeElement.id) // [NOTE] when implementing into actual editor, verify that this is an actual vertex
+      changedVertexes.push(document.activeElement.id);
+
+    while (pending.length > 0) {
+
+      if (changedVertexes.indexOf(pending[0].vertex) === -1)
+        changedVertexes.push(pending[0].vertex);
+
+      set(push(child(ref(db), "changes")), pending.splice(0, 1)[0]);
+    }
+
+    // Update the stored content and the user changed time:
+    setTimeout(function() {
+
+      // Ensure that no changes have been made during the 100ms delay:
+      if (getCurrentTime() - lastChange < 100)
+        return;
+
+      for (let i = 0; i < changedVertexes.length; i++) {
+        set(ref(db, `vertexes/${changedVertexes[i]}/content`), {
+          text: document.getElementById(changedVertexes[i]).textContent + (document.getElementById(changedVertexes[i]).textContent[document.getElementById(changedVertexes[i]).textContent.length - 1] !== "\n" ? "\n" : ""),
+          style: {
+            bold: acquireMetaTag(document.getElementById(changedVertexes[i]), "bold"),
+            italic: acquireMetaTag(document.getElementById(changedVertexes[i]), "italic"),
+            underline: acquireMetaTag(document.getElementById(changedVertexes[i]), "underline"),
+            strikethrough: acquireMetaTag(document.getElementById(changedVertexes[i]), "strikethrough")
+          },
+          links: acquireMetaTag(document.getElementById(changedVertexes[i]), "links"),
+          updated: getCurrentTime(),
+          uid: uid
+        });
+      }
+    }, 100);
+    setTimeout(async function() {
+      set(ref(db, `users/${uid}/changed`), getCurrentTime());
+      set(ref(db, `users/${uid}/status`), "active");
+    }, 0);
+    setTimeout(async function() {
+
+      // Update the cursor positions:
+      let userData = (await acquireData("users", function(err) { console.error(err); })) || {};
+      setCrsrs(userData);
+    }, 250);
+  }
+
+}
 
 function acquireMetaTag(el, type) {
   switch(type) {
@@ -1272,6 +1329,105 @@ function acquireMetaTag(el, type) {
       return newLinks;
     break;
   }
+}
+
+function checkChanges(changesObj, t) {
+  
+  // Orgainze the changes:
+  let changes = [];
+  for (let i in changesObj) {
+
+    // Check if this change has already been applied:
+    if (applied.indexOf(i) !== -1)
+      continue;
+
+    let changeToPush = copyObj(changesObj[i]);
+    changeToPush.key = i;
+
+    // Otherwise, we will apply this change:
+    changes.push(changeToPush);
+  }
+
+  // No changes to be made; return:
+  if (changes.length === 0)
+    return false;
+
+  // Otherwise, we have at least one change to handle:
+  quicksort(changes, 0, changes.length - 1, "timestamp");
+
+  // Apply changes:
+  for (let i = 0; i < changes.length; i++) {
+    if (changes[i].uid !== uid) {
+      applyChngs(changes[i]);
+    }
+    applied.push(changes[i].key);
+  }
+
+  lastChange = getCurrentTime();
+  lastUpdated = changes[changes.length - 1].timestamp;
+
+  // After changes have been applied, update the last updated timestamp for this user and check to see if the change can be removed from Firebase:
+  setTimeout(async function() {
+    await set(ref(db, `users/${uid}/updated`), changes[changes.length - 1].timestamp);
+
+    let users = await acquireData("users", function(err) { console.error(err); });
+    let allChnges = await acquireData("changes", function(err) { console.error(err); });
+
+    // Determine the most recent change for each vertex:
+    let lastChngs = {};
+    for (let change in allChnges) {
+      lastChngs[allChnges[change].vertex] = change;
+    }
+
+    // Remove changes if all clients have applied them:
+    let updatedChngs;
+    for (let change in allChnges) {
+      updatedChngs = true;
+      for (let i in users) {
+        if (users[i].updated < allChnges[change].timestamp) {
+          updatedChngs = false;
+          break;
+        }
+      }
+
+      // If all clients have already applied this change, remove it and update the stored content:
+      if (updatedChngs) {
+        remove(ref(db, `changes/${change}`));
+
+        // If this is the last change for the currently active vertex, update the content in Firebase:
+        if (change === lastChngs[allChnges[change].vertex] && allChnges[change].vertex === activeVertex) {
+          setTimeout(function() {
+
+            // Ensure that no changes have been made during the 100ms delay:
+            if (getCurrentTime() - lastChange < 100)
+              return;
+
+            // Update the content in Firebase:
+            set(ref(db, `vertexes/${allChnges[change].vertex}/content`), {
+              text: document.getElementById(allChnges[change].vertex).textContent + (document.getElementById(allChnges[change].vertex).textContent[document.getElementById(allChnges[change].vertex).textContent.length - 1] !== "\n" ? "\n" : ""),
+              style: {
+                bold: acquireMetaTag(document.getElementById(allChnges[change].vertex), "bold"),
+                italic: acquireMetaTag(document.getElementById(allChnges[change].vertex), "italic"),
+                underline: acquireMetaTag(document.getElementById(allChnges[change].vertex), "underline"),
+                strikethrough: acquireMetaTag(document.getElementById(allChnges[change].vertex), "strikethrough")
+              },
+              links: acquireMetaTag(document.getElementById(allChnges[change].vertex), "links"),
+              updated: getCurrentTime(),
+              uid: uid
+            });
+          }, 100);
+        }
+      }
+    }
+  }, 0);
+
+  // If no pending changes have been made since the last keypress, try again:
+  if (t && t === lastKeyPress) {
+    pushChanges();
+  }
+
+  return true;
+
 }
 
 function applyChngs(c, isUndoRedo) {
