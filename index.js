@@ -955,6 +955,91 @@ function setText(el, text, pos, ignoreCursor, classes, href) {
     setCrsrPos(el, { start: pos.start + 1, end: pos.start + 1 });
 
 }
+function setCrsrs(users) {
+
+  // Check if a user has disconnected:
+  for (let u in userCache) {
+
+    // This user no longer exists in Firebase; user has disconnected:
+    if (!users[u]) {
+
+      // Delete the user from the cache:
+      delete userCache[u];
+
+      // Remove the user's cursor:
+      while (document.getElementsByClassName(`cursor_${u}`).length > 0)
+        document.getElementsByClassName(`cursor_${u}`)[0].classList.remove(`cursor_${u}`);
+
+      while (document.getElementsByClassName(`cursor-selection_${u}`).length > 0)
+        document.getElementsByClassName(`cursor-selection_${u}`)[0].classList.remove(`cursor-selection_${u}`);
+    }
+  }
+
+  // Check if a user has joined:
+  for (let u in users) {
+
+    // This user did not previously exist in cache; this is a new user:
+    if (!userCache[u]) {
+
+      userCache[u] = users[u];
+      userCache[u].newUser = true;
+
+      // Set cursor styles:
+      applyCSSStyle(`cursor_${u}`, `border-left: 2px solid ${stringToColor(u)}; margin-left: -2px; animation: blink 1.06s steps(2, start) infinite; -webkit-animation: blink 1.06s steps(2, start) infinite;`);
+      applyCSSStyle(`cursor-selection_${u}`, `background-color: ${stringToColor(u)}50;`);
+    }
+  }
+
+  for (let u in users) {
+
+    // Skip self:
+    if (u === uid)
+      continue;
+
+    // Check if the user's cursor has not moved; if so, there is no need to update it:
+    let currCrsrPos = users[u].vertex ? [...document.getElementById(users[u].vertex).childNodes].indexOf(document.getElementsByClassName(`cursor_${u}`)[0]) : false;
+
+    // Update the cursor if the user is a new user, they have made a change of some sort (including have moved their cursor), or if the cursor is in the wrong position:
+    if (!userCache[u].newUser && JSON.stringify(users[u].changed) === JSON.stringify(userCache[u].changed) && ((!users[u].vertex || !users[u].cursor) || (users[u].cursor.start !== users[u].cursor.end) || (!users[uid] || users[u].updated < lastUpdated || users[u].cursor.start === currCrsrPos))) {
+      userCache[u] = users[u];
+      continue;
+    }
+
+    // Update the user cache:
+    userCache[u] = users[u];
+
+    // Clear previous cursor/cursor selection:
+    while (document.getElementsByClassName(`cursor_${u}`).length > 0)
+      document.getElementsByClassName(`cursor_${u}`)[0].classList.remove(`cursor_${u}`);
+
+    while (document.getElementsByClassName(`cursor-selection_${u}`).length > 0)
+      document.getElementsByClassName(`cursor-selection_${u}`)[0].classList.remove(`cursor-selection_${u}`);
+
+    // Don't apply cursors if this user is not currently editing a vertex:
+    if (!users[u].vertex || !users[u].cursor)
+      continue;
+
+    // Add new cursor/cursor selection:
+    let nodeSpans = document.getElementById(users[u].vertex).childNodes;
+
+    // User has a cursor but does not have a selection; add cursor:
+    if (users[u].cursor.start === users[u].cursor.end) {
+
+      if (nodeSpans[users[u].cursor.start])
+        nodeSpans[users[u].cursor.start].classList.add(`cursor_${u}`);
+
+    // User has a selection; add cursor selection:
+    } else {
+
+      for (let i = users[u].cursor.start; i < users[u].cursor.end; i++) {
+        if (nodeSpans[i])
+          nodeSpans[i].classList.add(`cursor-selection_${u}`);
+      }
+
+    }
+  }
+
+}
 
 
 
