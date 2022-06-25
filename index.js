@@ -886,6 +886,72 @@ document.body.addEventListener("mouseup", function() {
   }, 0);
 
 });
+function setText(el, text, pos, ignoreCursor, classes, href) {
+
+  // There was a text selection that is being overridden; remove the text being overridden:
+  if (pos.start !== pos.end) {
+
+    // Use the classes (for styling) and href of the first element if text is being overridden:
+    classes = classes ? classes : (el.childNodes[pos.start] && el.childNodes[pos.start].classList) ? [...el.childNodes[pos.start].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+    href = el.childNodes[pos.start] ? (el.childNodes[pos.start].dataset ? ((pos.start >= 0 && el.childNodes[pos.start].dataset.href !== undefined) ? ` data-href="${el.childNodes[pos.start].dataset.href}"` : "") : "" /* < Element is a text DOM element */) : "";
+
+    // Remove the text being overridden:
+    for (let i = pos.end - 1; i >= pos.start; i--) {
+      if (el.childNodes[i])
+        el.childNodes[i].remove();
+    }
+  }
+
+  // If no text is to be inserted, we're done here:
+  if (text.length === 0)
+    return;
+
+  // If the text to be inserted contains multiple characters, use a recursive call to add them one at a time (in order):
+  if (text.length > 1) {
+    for (let i = 0; i < text.length; i++) {
+      setText(el, text[i], { start: pos.start + i, end: pos.start + i }, true, classes, href);
+    }
+
+    if (!ignoreCursor)
+      setCrsrPos(el, { start: pos.start + text.length, end: pos.start + text.length });
+
+    return;
+  }
+
+  // Only 1 character is to be added; get the classes (for styling) and the href:
+  let classList = classes ? classes : actvStyles;
+  if (el.childNodes[pos.start - 1] && el.childNodes[pos.start] && el.childNodes[pos.start - 1].classList && el.childNodes[pos.start - 1].classList.contains("link") && el.childNodes[pos.start - 1].dataset.href === el.childNodes[pos.start].dataset.href)
+    classList.push("link");
+
+  // Add cursor selection classes if text is being added in the middle of another user's selection:
+  if (el.childNodes[pos.start - 1] && el.childNodes[pos.start - 1].classList && el.childNodes[pos.start] && el.childNodes[pos.start].classList) {
+    let cursorSelectionsBefore = [...el.childNodes[pos.start - 1].classList].filter(cl => cl.indexOf("cursor-selection") !== -1);
+    let cursorSelectionsAfter = [...el.childNodes[pos.start].classList].filter(cl => cl.indexOf("cursor-selection") !== -1);
+
+    for (let i = 0; i < cursorSelectionsBefore.length; i++) {
+      if (cursorSelectionsAfter.indexOf(cursorSelectionsBefore[i]) !== -1)
+        classList.push(cursorSelectionsBefore[i]);
+    }
+  }
+  let classText = classList.length > 0 ? ` class="${classList.join(" ")}"`: "";
+
+  let hrefData = href ? href : (el.childNodes[pos.start - 1] && el.childNodes[pos.start] ? ((pos.start - 1 >= 0 && el.childNodes[pos.start - 1].dataset.href !== undefined && el.childNodes[pos.start - 1].dataset.href === el.childNodes[pos.start].dataset.href) ? ` data-href="${el.childNodes[pos.start - 1].dataset.href}"` : "") : "");
+
+  // Append the element to the editor:
+  let span = document.createElement("div");
+  span.innerHTML = `<span${classText}${hrefData}>${text}</span>`;
+  if (pos === el.textContent.length) {
+    el.appendChild(span.childNodes[0]);
+  } else {
+    el.insertBefore(span.childNodes[0], el.childNodes[pos.start]);
+  }
+
+  // Set the caret position (if requested):
+  if (!ignoreCursor)
+    setCrsrPos(el, { start: pos.start + 1, end: pos.start + 1 });
+
+}
+
 
 
 
