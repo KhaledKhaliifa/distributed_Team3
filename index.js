@@ -1265,6 +1265,57 @@ function setCrsrPos(el, pos) {
 
 }
 
+function getSelectionPosition(pos) {
+  
+  if (!document.activeElement)
+    return;
+
+  // Get the spans:
+  let spans = document.activeElement.childNodes;
+  let rect;
+
+  // Determine the bounding box of all of the spans:
+  let selectionPos = {
+    x: {
+      min: Infinity,
+      max: 0
+    },
+    y: {
+      min: Infinity,
+      max: 0
+    }
+  };
+
+  // Handle if only 1 character is selected:
+  if (pos.start === pos.end) {
+    return {
+      x: rect.left,
+      y: rect.top,
+      w: 0,
+      h: rect.bottom - rect.top
+    };
+  }
+
+  for (let i = Math.max(pos.start, 0); i < Math.min(pos.end, spans.length); i++) {
+
+    rect = spans[i].getBoundingClientRect();
+
+    selectionPos.x.min = Math.min(selectionPos.x.min, rect.left);
+    selectionPos.x.max = Math.max(selectionPos.x.max, rect.right);
+    selectionPos.y.min = Math.min(selectionPos.y.min, rect.top);
+    selectionPos.y.max = Math.max(selectionPos.y.max, rect.bottom);
+  }
+
+  // Return said bounding box:
+  return {
+    x: selectionPos.x.min,
+    y: selectionPos.y.min,
+    w: selectionPos.x.max - selectionPos.x.min,
+    h: selectionPos.y.max - selectionPos.y.min
+  };
+
+}
+
 function getCurrentTime() {
   return Date.now();
 }
