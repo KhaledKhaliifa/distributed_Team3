@@ -1189,6 +1189,158 @@ function acquireMetaTag(el, type) {
   }
 }
 
+function applyChngs(c, isUndoRedo) {
+  
+  // Store the caret position and text content of the editor:
+  let crsrPos = getCrsrPos(c.vertex);
+  let text = document.getElementById(c.vertex).textContent;
+
+  // Remove the "\n" that is always present, but not actually able to be edited:
+  text = (text[text.length - 1] === "\n") ? (text.substring(0, text.length - 1)) : text;
+
+  // if changes were made between the time the other user sent the change and when this client recieved it:
+  if (!isUndoRedo) {
+
+    // Apply undo/redo to local stack:
+    if (c.undo) {
+      if (stack.undo.length > 0) {
+        stack.redo.push(stack.undo[stack.undo.length - 1]);
+        stack.undo.pop();
+      }
+    } else if (c.redo) {
+      if (stack.redo.length > 0) {
+        stack.undo.push(stack.redo[stack.redo.length - 1]);
+        stack.redo.pop();
+      }
+
+    // Otherwise, this change was not an undo/redo itself; add this change to the local stack for future use:
+    } else {
+      stack.undo.push(c);
+      stack.redo = [];
+    }
+  }
+
+  // Transform the change based on the pending changes:
+  for (let i = 0; i < pending.length; i++) {
+    // The pending text comes before the index where the text is to be replaced; therefore, move the text to be inserted over:
+    if (pending[i].action === "type" && pending[i].index <= c.index.start) {
+      c.index.start++;
+    }
+    if (pending[i].action === "type" && pending[i].index <= c.index.end) {
+      c.index.end++;
+    }
+    if (pending[i].action === "delete" && pending[i].index <= c.index.start) {
+      c.index.start--;
+    }
+    if (pending[i].action === "delete" && pending[i].index <= c.index.end) {
+      c.index.end--;
+    }
+    if (pending[i].action === "insert" && pending[i].index <= c.index.start) {
+      c.index.start += pending[i].content.length;
+    }
+    if (pending[i].action === "insert" && pending[i].index <= c.index.end) {
+      c.index.end += pending[i].content.length;
+    }
+    // Replacing could be implemented here, but it's quite the hassle
+  }
+
+  switch(c.action) {
+    case "type":
+
+      // Transform the pending text based on this change:
+      for (let i = 0; i < pending.length; i++) {
+        // The text to be typed comes before the pending text; therefore, move the pending text over:
+        if (pending[i].action === "replace") {
+          if (c.index.start <= pending[i].index.start) {
+            pending[i].index.start++;
+            pending[i].index.end++;
+          }
+          continue;
+        }
+        if (c.index.start < pending[i].index) {
+          pending[i].index++;
+        }
+      }
+
+      // Type the text:
+      setText(document.getElementById(c.vertex), c.content, { start: c.index.start, end: c.index.start }, true, c.style);
+    break;
+    case "delete":
+
+      // Transform the pending text based on this change:
+      for (let i = 0; i < pending.length; i++) {
+        // The text to be deleted comes before the pending text; therefore, move the pending text over:
+        if (pending[i].action === "replace") {
+          if (c.index.start <= pending[i].index.start) {
+            pending[i].index.start--;
+            pending[i].index.end--;
+          }
+          continue;
+        }
+        if (c.index.start < pending[i].index) {
+          pending[i].index--;
+        }
+      }
+
+      // Delete the text:
+      setText(document.getElementById(c.vertex), "", { start: c.index.start, end: c.index.start + 1 }, true, c.style);
+    break;
+    case "insert":
+
+      // Transform the pending text based on this change:
+      for (let i = 0; i < pending.length; i++) {
+        // The text to be inserted comes before the pending text; therefore, move the pending text over:
+        if (pending[i].action === "replace") {
+          if (c.index.start <= pending[i].index.start) {
+            pending[i].index.start += c.content.length;
+            pending[i].index.end += c.content.length;
+          }
+          continue;
+        }
+        if (c.index.start < pending[i].index) {
+          pending[i].index += c.content.length;
+        }
+      }
+
+      // Insert the text:
+      setText(document.getElementById(c.vertex), c.content, { start: c.index.start, end: c.index.start }, true, c.style);
+    break;
+    case "replace":
+
+      // Dealing with pending text could be implemented here, but it's a hassle and "getTransform" will usually handle it on the other clients anyway
+
+      // Replace the text:
+      setText(document.getElementById(c.vertex), c.content, { start: c.index.start, end: c.index.end }, true, c.style);
+    break;
+    case "style":
+
+      // Style the text:
+      let addStyle = c.content[0] === "-" ? false : true;
+      let style = addStyle ? c.content : c.content.substring(1);
+      applySelectedStyle(document.getElementById(c.vertex), style, { start: c.index.start, end: c.index.end }, addStyle);
+    break;
+    case "-link":
+    case "link":
+
+      // Link the text:
+      let addLink = c.action[0] === "-" ? false : true;
+      setLink(document.getElementById(c.vertex), c.content, { start: c.index.start, end: c.index.end }, addLink, false);
+    break;
+  }
+
+  // Update cursor position in Firebase and get active styles (after event finishes):
+  setTimeout(function() {
+
+    if (document.activeElement.id) { // [NOTE]
+      actvStyles = getActvStyles(document.activeElement);
+      actvtBtns();
+    }
+
+    if (!document.activeElement.classList.contains("link-creator-element"))
+      set(ref(db, `users/${uid}/cursor`), getCrsrPos(document.getElementById(c.vertex)));
+  }, 0);
+}
+
 async function acquireData(path, err) {
 
   let data;
