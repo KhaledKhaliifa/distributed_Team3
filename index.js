@@ -1099,3 +1099,30 @@ function quicksort(arr, lo, hi, by) {
 function copyObj(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
+
+function throttled(callback, delay) {
+  
+  let runCallback = false;
+  let wait = false;
+  let timeout = () => {
+    if (!runCallback) {
+      wait = false;
+    } else {
+      callback();
+      runCallback = false;
+      setTimeout(timeout, delay);
+    }
+  };
+
+  return () => {
+    if (wait) {
+      runCallback = true;
+      return;
+    }
+
+    callback();
+    wait = true;
+
+    setTimeout(timeout, delay);
+  };
+}
