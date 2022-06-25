@@ -1097,6 +1097,27 @@ function applySelectedStyle(el, style, pos, addStyle) {
 
 
 
+function acquireMetaTag(el, type) {
+  switch(type) {
+    case "bold":
+    case "italic":
+    case "underline":
+    case "strikethrough":
+      return [...el.childNodes].map(elm => elm.classList.contains(type) ? "X" : "_").slice(0, -1).join("");
+    break;
+    case "links":
+      let links = [...el.childNodes].map(elm => elm.dataset.href || "").slice(0, -1);
+      let newLinks = {};
+
+      for (let i = 0; i < links.length; i++) {
+        if (links[i])
+          newLinks[i] = links[i]
+      }
+
+      return newLinks;
+    break;
+  }
+}
 
 async function acquireData(path, err) {
 
