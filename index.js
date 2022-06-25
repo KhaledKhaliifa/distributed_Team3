@@ -1067,3 +1067,31 @@ function setCrsrPos(el, pos) {
 function getCurrentTime() {
   return Date.now();
 }
+
+  
+function partition(arr, lo, hi, by) {
+  let pivot = (by ? arr[hi][by] : arr[hi]);
+  let i = lo;
+  for (let j = lo; j < hi; j++) {
+    if ((by ? arr[j][by] : arr[j]) < pivot) {
+      if (i !== j) {
+        let t = arr[j];
+        arr[j] = arr[i];
+        arr[i] = t;
+      }
+      i++;
+    }
+  }
+  let t = arr[hi];
+  arr[hi] = arr[i];
+  arr[i] = t;
+  return i;
+}
+
+function quicksort(arr, lo, hi, by) {
+  if (lo < hi) {
+    let p = partition(arr, lo, hi, by);
+    quicksort(arr, lo, p - 1, by);
+    quicksort(arr, p + 1, hi, by);
+  }
+}
