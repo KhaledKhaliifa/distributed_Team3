@@ -235,6 +235,280 @@ function getActvStyles(el) {
   }
 }
 
+document.getElementById("editor").addEventListener("keydown", async function(e) {
+
+  // Update cursor position in Firebase (after event finishes):
+  setTimeout(function() {
+    set(ref(db, `users/${uid}/cursor`), getCrsrPos(document.getElementById("editor")));
+
+    // Handle arrow keys and "Ctrl + A":
+    if (e.keyCode === 37 || e.keyCode === 38 || e.keyCode === 39 || e.keyCode === 40 || (e.ctrlKey && e.keyCode === 65)) {
+      actvStyles = getActvStyles(document.getElementById("editor"));
+      actvtBtns();
+
+      set(ref(db, `users/${uid}/changed`), getCurrentTime());
+      set(ref(db, `users/${uid}/status`), "active");
+    }
+  }, 0);
+
+  // Close the link creator:
+  while (document.getElementsByClassName("link-creator").length > 0) {
+    document.getElementsByClassName("link-creator")[0].remove();
+  }
+  clrSelection();
+
+  // Prevent defualt behavior of most keys (alpha-numerical, delete/backspace, undo/redo, styling keys):
+  if ((!e.ctrlKey && e.key.length === 1) || (e.keyCode === 8 || e.keyCode === 46 || e.keyCode === 13) || (e.ctrlKey && (e.keyCode === 90 || e.keyCode === 89 || e.keyCode === 66 || e.keyCode === 73 || e.keyCode === 85 || e.keyCode === 83 || e.keyCode === 75)))
+    e.preventDefault();
+
+  let crsrPos = getCrsrPos(this);
+  let key;
+
+  // Handle enter:
+  if (e.keyCode === 13)
+    key = "\n";
+
+  // Handle backspace / delete:
+  if (e.keyCode === 8 && crsrPos.end > 0 || e.keyCode === 46 && crsrPos.end < this.textContent.length - 1) {
+
+    // No selection:
+    if (crsrPos.start === crsrPos.end) {
+
+      // Handle normal backspace / delete:
+      if (!e.ctrlKey) {
+
+        // Update active styles:
+        actvStyles = (this.childNodes[crsrPos.start - (e.keyCode === 8 ? 1 : 0)] && this.childNodes[crsrPos.start - (e.keyCode === 8 ? 1 : 0)].classList) ? [...this.childNodes[crsrPos.start - (e.keyCode === 8 ? 1 : 0)].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+        actvtBtns();
+
+        buffer({
+          vertex: "editor",
+          action: "delete",
+          contentPre: this.textContent[crsrPos.start - (e.keyCode === 8 ? 1 : 0)],
+          index: {
+            start: crsrPos.start - (e.keyCode === 8 ? 1 : 0),
+            end: crsrPos.start - (e.keyCode === 8 ? 1 : 0)
+          },
+          surrounding: {
+            before: this.textContent[crsrPos.start - 1 - (e.keyCode === 8 ? 1 : 0)] || false,
+            after: ((crsrPos.start + (e.keyCode === 46 ? 1 : 0)) === this.textContent.length - 1 && this.textContent[crsrPos.start + (e.keyCode === 46 ? 1 : 0)] === "\n") ? false : (this.textContent[crsrPos.start + (e.keyCode === 46 ? 1 : 0)] || false)
+          }
+        });
+
+        lastKeyPress = getCurrentTime();
+        pushChanges(lastKeyPress);
+
+        setText(this, "", { start: crsrPos.start - (e.keyCode === 8 ? 1 : 0), end: crsrPos.end + (e.keyCode === 46 ? 1 : 0) });
+
+      // Handle Ctrl + Backspace / Delete:
+      } else {
+
+        // Determine what index to delete up to:
+        let breakCharacters = " `~!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?\n".split("");
+        let initialIndex = crsrPos.start + (this.textContent[crsrPos.start + (e.keyCode === 8 ? -1 : 0)] === " " ? (e.keyCode === 8 ? -2 : 2) : (e.keyCode === 8 ? -1 : 1));
+        let i = initialIndex;
+        while (i > 0 && i < this.textContent.length - 1 && (breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? -1 : 0)]) === -1 && breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? 0 : -1)]) === -1 || breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? 0 : -1)]) !== -1 && breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? -1 : 0)]) !== -1)) {
+          i += (e.keyCode === 8 ? -1 : 1);
+        }
+
+        // Update active styles:
+        actvStyles = (this.childNodes[i] && this.childNodes[i].classList) ? [...this.childNodes[i].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+        actvtBtns();
+
+        let start = Math.min(crsrPos.start, i);
+        let end = Math.max(crsrPos.start, i);
+
+        buffer({
+          vertex: "editor",
+          action: "replace",
+          contentPre: this.textContent.substring(start, end),
+          content: "",
+          index: {
+            start: start,
+            end: end
+          },
+          surrounding: {
+            before: this.textContent[start - 1] || false,
+            after: (end === this.textContent.length - 1 && this.textContent[end] === "\n") ? false : (this.textContent[end] || false)
+          }
+        });
+
+        lastKeyPress = getCurrentTime();
+        pushChanges(lastKeyPress);
+
+        setText(this, "", { start: start, end: end });
+
+      }
+    // Selection:
+    } else {
+
+      // Update active styles:
+      actvStyles = (this.childNodes[crsrPos.start] && this.childNodes[crsrPos.start].classList) ? [...this.childNodes[crsrPos.start].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+      actvtBtns();
+
+      buffer({
+        vertex: "editor",
+        action: "replace",
+        contentPre: this.textContent.substring(crsrPos.start, crsrPos.end),
+        content: "",
+        index: {
+          start: crsrPos.start,
+          end: crsrPos.end
+        },
+        surrounding: {
+          before: this.textContent[crsrPos.start - 1] || false,
+          after: (crsrPos.end === this.textContent.length - 1 && this.textContent[crsrPos.end] === "\n") ? false : (this.textContent[crsrPos.end] || false)
+        }
+      });
+
+      lastKeyPress = getCurrentTime();
+      pushChanges(lastKeyPress);
+
+      setText(this, "", crsrPos);
+    }
+  }
+
+  // Handle undo/redo:
+  // Ctrl + Z (Undo):
+  if (e.ctrlKey && !e.shiftKey && e.keyCode === 90 && stack.undo.length > 0) {
+    executeUndo();
+  }
+
+  // Ctrl + Shift + Z or Ctrl + Y (Redo):
+  if ((e.ctrlKey && e.shiftKey && e.keyCode === 90 || e.ctrlKey && e.keyCode === 89) && stack.redo.length > 0) {
+    executeRedo();
+  }
+
+  // Handle styling keys and link keys:
+  // Ctrl + B (Bold):
+  if (e.ctrlKey && !e.shiftKey && e.keyCode === 66) {
+
+    // No text is selected:
+    if (crsrPos.start === crsrPos.end) {
+      if (actvStyles.indexOf("bold") === -1) {
+        actvStyles.push("bold");
+      } else {
+        actvStyles.splice(actvStyles.indexOf("bold"), 1);
+      }
+
+      actvtBtns();
+
+    // Text is selected:
+    } else {
+      applySelectedStyle(document.getElementById("editor"), "bold");
+    }
+  }
+
+  // Ctrl + I (Italic):
+  if (e.ctrlKey && !e.shiftKey && e.keyCode === 73) {
+
+    // No text is selected:
+    if (crsrPos.start === crsrPos.end) {
+      if (actvStyles.indexOf("italic") === -1) {
+        actvStyles.push("italic");
+      } else {
+        actvStyles.splice(actvStyles.indexOf("italic"), 1);
+      }
+
+      actvtBtns();
+
+    // Text is selected:
+    } else {
+      applySelectedStyle(document.getElementById("editor"), "italic");
+    }
+  }
+
+  // Ctrl + U (Underline):
+  if (e.ctrlKey && !e.shiftKey && e.keyCode === 85) {
+
+    // No text is selected:
+    if (crsrPos.start === crsrPos.end) {
+      if (actvStyles.indexOf("underline") === -1) {
+        actvStyles.push("underline");
+      } else {
+        actvStyles.splice(actvStyles.indexOf("underline"), 1);
+      }
+
+      actvtBtns();
+
+    // Text is selected:
+    } else {
+      applySelectedStyle(document.getElementById("editor"), "underline");
+    }
+  }
+
+  // Ctrl + S (Strikethrough):
+  if (e.ctrlKey && !e.shiftKey && e.keyCode === 83) {
+
+    // No text is selected:
+    if (crsrPos.start === crsrPos.end) {
+      if (actvStyles.indexOf("strikethrough") === -1) {
+        actvStyles.push("strikethrough");
+      } else {
+        actvStyles.splice(actvStyles.indexOf("strikethrough"), 1);
+      }
+
+      actvtBtns();
+
+    // Text is selected:
+    } else {
+      applySelectedStyle(document.getElementById("editor"), "strikethrough");
+    }
+  }
+
+  // Ctrl + K (Link):
+  if (e.ctrlKey && !e.shiftKey && e.keyCode === 75) {
+    if (crsrPos.start !== crsrPos.end) {
+      createDocLink(this);
+    }
+  }
+
+  // If we aren't dealing with a normal key, return now:
+  if (e.keyCode !== 13 && (e.ctrlKey || e.altKey || e.key.length > 1))
+    return;
+
+  // Handle typing/selecting text and typing:
+  if (crsrPos.start === crsrPos.end) {
+    buffer({
+      vertex: "editor",
+      action: "type",
+      content: key || e.key,
+      index: {
+        start: crsrPos.end,
+        end: crsrPos.end
+      },
+      surrounding: {
+        before: this.textContent[crsrPos.end - 1] || false, // The first part of this conditional is to ignore the last "\n" that HTML sometimes autofills (for whatever reason):
+        after: (crsrPos.end === this.textContent.length - 1 && this.textContent[crsrPos.end] === "\n") ? false : (this.textContent[crsrPos.end] || false)
+      }
+    });
+
+    lastKeyPress = getCurrentTime();
+    pushChanges(lastKeyPress);
+  } else {
+    buffer({
+      vertex: "editor",
+      action: "replace",
+      contentPre: this.textContent.substring(crsrPos.start, crsrPos.end),
+      content: key || e.key,
+      index: {
+        start: crsrPos.start,
+        end: crsrPos.end
+      },
+      surrounding: {
+        before: this.textContent[crsrPos.start - 1] || false,
+        after: (crsrPos.end === this.textContent.length - 1 && this.textContent[crsrPos.end] === "\n") ? false : (this.textContent[crsrPos.end] || false)
+      }
+    });
+
+    lastKeyPress = getCurrentTime();
+    pushChanges(lastKeyPress);
+  }
+
+  setText(this, key || e.key, crsrPos);
+
+});
+
 
 
 
