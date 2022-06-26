@@ -46,7 +46,13 @@ window.addEventListener("load", async function() {
   // Get the stored text for the editor:
   let content = (await acquireData("vertexes/editor/content", function(err) { console.error(err); })) || { vertex: "editor", text: "\n", style: { bold: "", italic: "", underline: "", strikethrough: "" }, uid: "", updated: 0 };
   let userData = (await acquireData("users", function(err) { console.error(err); })) || {};
-  setText(document.getElementById("editor"), content.text + (content.text[content.text.length - 1] !== "\n" ? "\n" : ""), { start: 0, end: 0 }, true);
+  if(content.text[content.text.length - 1] !== "\n"){
+    editorMessage = "\n";
+  }
+  else{
+    editorMessage ="";
+  }
+  setText(document.getElementById("editor"), content.text + editorMessage, { start: 0, end: 0 }, true);
   applyStyle(document.getElementById("editor"), content.style);
   overrideLinks(document.getElementById("editor"), content.links);
   setCrsrs(userData);
@@ -76,7 +82,7 @@ window.addEventListener("load", async function() {
     // Check for disconnects:
     if (!userData || !userData[uid] || !userData[uid].status) {
       uid = "_disconnected";
-      alert("You have been disconnected from the server.\n\nIf this is a recurring issue, there might be something wrong with the editor's content or your internet connection."); // [NOTE]
+      alert("You have been disconnected from the server.\n\nYou'll be automatically reconnected."); // [NOTE]
       location.reload(true);
       return;
     }
