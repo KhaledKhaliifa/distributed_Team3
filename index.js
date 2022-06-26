@@ -1472,6 +1472,34 @@ function executeUndo() {
   lastKeyPress = getCurrentTime();
   pushChanges(lastKeyPress);
 }
+function redoOP(c, buf) {
+
+  if (!buf)
+    return c;
+
+  // Update the UID, the timestamp, and set the "redo" key to true when sending out redo changes:
+  c.uid = uid;
+  c.timestamp = getCurrentTime();
+  c.redo = true;
+  return c;
+}
+
+function executeRedo() {
+
+  // Redo the change:
+  buffer(redoOP(stack.redo[stack.redo.length - 1], true), true);
+  applyChngs(stack.redo[stack.redo.length - 1], true);
+
+  // Push the undone change to the redo stack:
+  stack.undo.push(stack.redo[stack.redo.length - 1]);
+
+  // Clear the undone change from the undo stack:
+  stack.redo.pop();
+
+  // Push changes to Firebase:
+  lastKeyPress = getCurrentTime();
+  pushChanges(lastKeyPress);
+}
 
 
 
