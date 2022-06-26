@@ -1337,6 +1337,125 @@ function setLink(el, link, pos, addLink, localChange) {
     }
   }
 }
+function undoOP(c, buf) {
+
+  // Create and return a change that will undo whatever the passed in change changed:
+  switch(c.action) {
+    case "type":
+      return {
+        vertex: c.vertex,
+        uid: uid,
+        timestamp: getCurrentTime(),
+        action: "delete",
+        contentPre: c.content,
+        undo: buf,
+        index: {
+          start: c.index.start,
+          end: c.index.end
+        },
+        surrounding: {
+          before: document.getElementById(c.vertex).textContent[c.index.start - 1] || false,
+          after: (c.index.start + 1 === document.getElementById(c.vertex).textContent.length - 1 && document.getElementById(c.vertex).textContent[c.index.start + 1] === "\n") ? false : (document.getElementById(c.vertex).textContent[c.index.start + 1] || false)
+        }
+      };
+    break;
+    case "delete":
+      return {
+        vertex: c.vertex,
+        uid: uid,
+        timestamp: getCurrentTime(),
+        action: "type",
+        content: c.contentPre,
+        undo: buf,
+        index: {
+          start: c.index.start,
+          end: c.index.end
+        },
+        surrounding: {
+          before: document.getElementById(c.vertex).textContent[c.index.start - 1] || false, // The first part of this conditional is to ignore the last "\n" that HTML sometimes autofills (for whatever reason):
+          after: (c.index.start === document.getElementById(c.vertex).textContent.length - 1 && document.getElementById(c.vertex).textContent[c.index.start] === "\n") ? false : (document.getElementById(c.vertex).textContent[c.index.start] || false)
+        }
+      };
+    break;
+    case "insert":
+      return {
+        vertex: c.vertex,
+        uid: uid,
+        timestamp: getCurrentTime(),
+        action: "replace",
+        contentPre: c.content,
+        content: "",
+        undo: buf,
+        index: {
+          start: c.index.start,
+          end: c.index.end + c.content.length
+        },
+        surrounding: {
+          before: document.getElementById(c.vertex).textContent[c.index.start - 1] || false,
+          after: (c.index.start + c.content.length === document.getElementById(c.vertex).textContent.length - 1 && document.getElementById(c.vertex).textContent[c.index.start + c.content.length] === "\n") ? false : (document.getElementById(c.vertex).textContent[c.index.start + c.content.length] || false)
+        }
+      };
+    break;
+    case "replace":
+      return {
+        vertex: c.vertex,
+        uid: uid,
+        timestamp: getCurrentTime(),
+        action: "replace",
+        contentPre: c.content,
+        content: c.contentPre,
+        undo: buf,
+        index: {
+          start: c.index.start,
+          end: c.index.start + c.content.length
+        },
+        surrounding: {
+          before: document.getElementById(c.vertex).textContent[c.index.start - 1] || false,
+          after: (c.index.start + c.content.length === document.getElementById(c.vertex).textContent.length - 1 && document.getElementById(c.vertex).textContent[c.index.start + c.content.length] === "\n") ? false : (document.getElementById(c.vertex).textContent[c.index.start + c.content.length] || false)
+        }
+      };
+    break;
+    case "style":
+      return {
+        vertex: c.vertex,
+        uid: uid,
+        timestamp: getCurrentTime(),
+        action: "style",
+        contentPre: c.contentPre,
+        content: (c.content[0] === "-" ? c.content.substring(1) : ("-" + c.content)),
+        undo: buf,
+        index: {
+          start: c.index.start,
+          end: c.index.end
+        },
+        surrounding: {
+          before: document.getElementById(c.vertex).textContent[c.index.start - 1] || false,
+          after: (c.index.end === document.getElementById(c.vertex).textContent.length - 1 && document.getElementById(c.vertex).textContent[c.index.end] === "\n") ? false : (document.getElementById(c.vertex).textContent[c.index.end] || false)
+        }
+      };
+    break;
+    case "-link":
+    case "link":
+      return {
+        vertex: c.vertex,
+        uid: uid,
+        timestamp: getCurrentTime(),
+        action: c.action[0] === "-" ? "link" : "-link",
+        contentPre: c.contentPre,
+        content: c.content,
+        undo: buf,
+        index: {
+          start: c.index.start,
+          end: c.index.end
+        },
+        surrounding: {
+          before: document.getElementById(c.vertex).textContent[c.index.start - 1] || false,
+          after: (c.index.end === document.getElementById(c.vertex).textContent.length - 1 && document.getElementById(c.vertex).textContent[c.index.end] === "\n") ? false : (document.getElementById(c.vertex).textContent[c.index.end] || false)
+        }
+      };
+    break;
+  }
+}
 
 
 
