@@ -130,18 +130,16 @@ window.addEventListener("load", async function() {
     // Check if a user is idle or should be kicked:
     for (let u in users) {
 
-      // Set status to idle if no changes have been made for more than 5 minutes:
-      if (users[u].status === "active" && getCurrentTime() - users[u].changed >= 5 * 60 * 1000) {
+      // Set status to idle if no changes have been made for more than 3 minutes:
+      if (users[u].status === "active" && getCurrentTime() - users[u].changed >= 3 * 60 * 1000) {
         set(ref(db, `users/${u}/status`), "idle");
       }
 
-      // Remove user from the database if they have not recieved an update for more than 10 minutes [NOTE when implementing into real thing, take the last updated time into consideration (for example, a user should only be kicked if they have not recieved an update 5 minutes after the last time the content itself was updated)]:
-      if (!users[u].status || getCurrentTime() - users[u].updated >= 10 * 60 * 1000) {
+      // Remove user from the database if they have not recieved an update for more than 10 minutes
+      if (!users[u].status || getCurrentTime() - users[u].updated >= 5 * 60 * 1000) {
         remove(ref(db, `users/${u}`));
       }
     }
-
-
   }, 5 * 1000);
 });
 
