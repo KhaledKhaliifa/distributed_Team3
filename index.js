@@ -419,7 +419,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
     }
   }
 
-  // If we aren't dealing with a normal key, return now:
+  // If we aren't dealing with a normal key, return:
   if (e.keyCode !== 13 && (e.ctrlKey || e.altKey || e.key.length > 1))
     return;
 
@@ -434,14 +434,15 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         end: crsrPos.end
       },
       surrounding: {
-        before: this.textContent[crsrPos.end - 1] || false, // The first part of this conditional is to ignore the last "\n" that HTML sometimes autofills (for whatever reason):
+        before: this.textContent[crsrPos.end - 1] || false, // HTML sometimes bugs and fills with '\n' 
         after: (crsrPos.end === this.textContent.length - 1 && this.textContent[crsrPos.end] === "\n") ? false : (this.textContent[crsrPos.end] || false)
       }
     });
 
     lastKeyPress = getCurrentTime();
     pushChanges(lastKeyPress);
-  } else {
+  } 
+  else {
     buffer({
       vertex: "editor",
       action: "replace",
@@ -452,7 +453,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         end: crsrPos.end
       },
       surrounding: {
-        before: this.textContent[crsrPos.start - 1] || false,
+        before: this.textContent[crsrPos.start - 1] || false, // Same as line 437 
         after: (crsrPos.end === this.textContent.length - 1 && this.textContent[crsrPos.end] === "\n") ? false : (this.textContent[crsrPos.end] || false)
       }
     });
