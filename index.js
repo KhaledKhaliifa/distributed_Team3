@@ -136,7 +136,7 @@ window.addEventListener("load", async function() {
         set(ref(db, `users/${u}/status`), "idle");
       }
 
-      // Remove user from the database if they have not recieved an update for more than 10 minutes
+      // Remove user from the database if they have not recieved an update for more than 5 minutes
       if (!users[u].status || getCurrentTime() - users[u].updated >= 5 * 60 * 1000) {
         remove(ref(db, `users/${u}`));
       }
@@ -173,14 +173,12 @@ async function sync(el, content) {
 
     // If the client is not synced for 5 times in total (~1.25 seconds), sync them:
     if (contentCheck >= contentCheckDelay) {
-
       console.warn("Sync");
-
       // Store the caret position to perserve it for later:
       let caretPos = getCrsrPos(document.getElementById("editor"));
-
       // Grab user data to sync cursors:
       let userData = (await acquireData("users", function(err) { console.error(err); })) || {};
+
 
       // Sync everything:
       document.getElementById("editor").textContent = "";
@@ -207,7 +205,7 @@ async function sync(el, content) {
 
 function actvtBtns() {
 
-  // Reset active classes:
+  // Reset other active classes:
   while (document.getElementsByClassName("button-active").length > 0)
     document.getElementsByClassName("button-active")[0].classList.remove("button-active");
 
@@ -216,6 +214,7 @@ function actvtBtns() {
     document.getElementById(actvStyles[i]).classList.add("button-active");
   }
 }
+
 function getActvStyles(el) {
 
   let caretPos = getCrsrPos(el);
@@ -226,17 +225,6 @@ function getActvStyles(el) {
     return (el.childNodes[caretPos.start - 1] && el.childNodes[caretPos.start - 1].classList) ? [...el.childNodes[caretPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
 
   // Text is being selected; get the styles that apply to all characters in the selection:
-  } else {
-
-    // Get the styles of the first character in the selection:
-    let styles = (el.childNodes[caretPos.start] && el.childNodes[caretPos.start].classList) ? [...el.childNodes[caretPos.start].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
-
-    // Remove the style if it doesn't apply to all of the characters in the selection:
-    for (let i = caretPos.start + 1; i < caretPos.end; i++) {
-      let indexedStyles = (el.childNodes[i] && el.childNodes[i].classList) ? [...el.childNodes[i].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
-      styles = styles.filter(cl => indexedStyles.indexOf(cl) !== -1);
-    }
-    return styles;
   }
 }
 
