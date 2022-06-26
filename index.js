@@ -77,9 +77,8 @@ window.addEventListener("load", async function() {
     const userData = snapshot.val();
 
     if (uid === "_disconnected")
-    {
       return;
-    }
+
     // Check for disconnects:
     if (!userData || !userData[uid] || !userData[uid].status) {
       uid = "_disconnected";
