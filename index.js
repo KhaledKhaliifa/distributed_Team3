@@ -131,12 +131,12 @@ window.addEventListener("load", async function() {
     // Check if a user is idle or should be kicked:
     for (let u in users) {
 
-      // Set status to idle if no changes have been made for more than 1 minutes:
-      if (users[u].status === "active" && getCurrentTime() - users[u].changed >= 1 * 60 * 1000) {
+      // Set status to idle if no changes have been made for more than 5 minutes:
+      if (users[u].status === "active" && getCurrentTime() - users[u].changed >= 5 * 60 * 1000) {
         set(ref(db, `users/${u}/status`), "idle");
       }
-      // Disconnect user if no changes have been made for more than 5 minutes:
-      if (!users[u].status || getCurrentTime() - users[u].updated >= 5 * 60 * 1000) {
+
+      if (!users[u].status || getCurrentTime() - users[u].updated >= 10 * 60 * 1000) {
         remove(ref(db, `users/${u}`));
       }
     }
