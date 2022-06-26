@@ -78,13 +78,12 @@ window.addEventListener("load", async function() {
     const userData = snapshot.val();
 
     if (uid === "_disconnected")
-    {
       return;
-    }
+
     // Check for disconnects:
     if (!userData || !userData[uid] || !userData[uid].status) {
       uid = "_disconnected";
-      alert("You have been disconnected from the server.\n\nYou'll be automatically reconnected."); // [NOTE]
+      alert("You have been disconnected from the server.\n\nYou will be reconnected automatically.");
       location.reload(true);
       return;
     }
@@ -142,6 +141,8 @@ window.addEventListener("load", async function() {
         remove(ref(db, `users/${u}`));
       }
     }
+
+
   }, 5 * 1000);
 });
 
@@ -174,12 +175,14 @@ async function sync(el, content) {
 
     // If the client is not synced for 5 times in total (~1.25 seconds), sync them:
     if (contentCheck >= contentCheckDelay) {
+
       console.warn("Sync");
+
       // Store the caret position to perserve it for later:
       let caretPos = getCrsrPos(document.getElementById("editor"));
+
       // Grab user data to sync cursors:
       let userData = (await acquireData("users", function(err) { console.error(err); })) || {};
-
 
       // Sync everything:
       document.getElementById("editor").textContent = "";
@@ -193,7 +196,7 @@ async function sync(el, content) {
       syncCount++;
 
       // Disconnect the user if sync is unable to fix the issue:
-      if (syncCount >= 10)
+      if (syncCount >= 30)
         remove(ref(db, `users/${uid}`));
     }
 
@@ -206,7 +209,7 @@ async function sync(el, content) {
 
 function actvtBtns() {
 
-  // Reset other active classes:
+  // Reset active classes:
   while (document.getElementsByClassName("button-active").length > 0)
     document.getElementsByClassName("button-active")[0].classList.remove("button-active");
 
@@ -218,12 +221,14 @@ function actvtBtns() {
 
 function getActvStyles(el) {
 
-  let cursorPos = getCrsrPos(el);
+  let caretPos = getCrsrPos(el);
 
   // Determine what the current active styles should be:
   // No text is selected; get the style of the character before:
-  if (cursorPos.start === cursorPos.end) {
-    return (el.childNodes[cursorPos.start - 1] && el.childNodes[cursorPos.start - 1].classList) ? [...el.childNodes[cursorPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+  if (caretPos.start === caretPos.end) {
+    return (el.childNodes[caretPos.start - 1] && el.childNodes[caretPos.start - 1].classList) ? [...el.childNodes[caretPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+
+  // Text is being selected; get the styles that apply to all characters in the selection:
   }
 }
 
@@ -247,7 +252,6 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
   while (document.getElementsByClassName("link-creator").length > 0) {
     document.getElementsByClassName("link-creator")[0].remove();
   }
-  
   clrSelection();
 
   // Prevent defualt behavior of most keys (alpha-numerical, delete/backspace, undo/redo, styling keys):
@@ -275,7 +279,6 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         actvtBtns();
 
         buffer({
-
           vertex: "editor",
           action: "delete",
           contentPre: this.textContent[crsrPos.start - (e.keyCode === 8 ? 1 : 0)],
@@ -287,15 +290,13 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
             before: this.textContent[crsrPos.start - 1 - (e.keyCode === 8 ? 1 : 0)] || false,
             after: ((crsrPos.start + (e.keyCode === 46 ? 1 : 0)) === this.textContent.length - 1 && this.textContent[crsrPos.start + (e.keyCode === 46 ? 1 : 0)] === "\n") ? false : (this.textContent[crsrPos.start + (e.keyCode === 46 ? 1 : 0)] || false)
           }
-
         });
 
         lastKeyPress = getCurrentTime();
         pushChanges(lastKeyPress);
 
         setText(this, "", { start: crsrPos.start - (e.keyCode === 8 ? 1 : 0), end: crsrPos.end + (e.keyCode === 46 ? 1 : 0) });
-
-      } 
+      }
     // Selection:
     } else {
 
@@ -420,7 +421,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
     }
   }
 
-  // If we aren't dealing with a normal key, return:
+  // If we aren't dealing with a normal key, return now:
   if (e.keyCode !== 13 && (e.ctrlKey || e.altKey || e.key.length > 1))
     return;
 
@@ -435,15 +436,14 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         end: crsrPos.end
       },
       surrounding: {
-        before: this.textContent[crsrPos.end - 1] || false, // HTML sometimes bugs and fills with '\n' 
+        before: this.textContent[crsrPos.end - 1] || false, // The first part of this conditional is to ignore the last "\n" that HTML sometimes autofills (for whatever reason):
         after: (crsrPos.end === this.textContent.length - 1 && this.textContent[crsrPos.end] === "\n") ? false : (this.textContent[crsrPos.end] || false)
       }
     });
 
     lastKeyPress = getCurrentTime();
     pushChanges(lastKeyPress);
-  } 
-  else {
+  } else {
     buffer({
       vertex: "editor",
       action: "replace",
@@ -454,7 +454,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         end: crsrPos.end
       },
       surrounding: {
-        before: this.textContent[crsrPos.start - 1] || false, // Same as line 437 
+        before: this.textContent[crsrPos.start - 1] || false,
         after: (crsrPos.end === this.textContent.length - 1 && this.textContent[crsrPos.end] === "\n") ? false : (this.textContent[crsrPos.end] || false)
       }
     });
@@ -466,21 +466,6 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
   setText(this, key || e.key, crsrPos);
 
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 document.getElementById("editor").addEventListener("input", function(e) {
 
@@ -614,6 +599,7 @@ document.getElementById("editor").addEventListener("input", function(e) {
     return;
   }
 });
+
 document.getElementById("editor").addEventListener("paste", function(e) {
 
   // Update cursor position in Firebase (after event finishes):
@@ -730,6 +716,7 @@ document.getElementById("editor").addEventListener("blur", function(e) {
   }, 0);
 
 });
+
 document.body.addEventListener("mousedown", function(e) {
 
   // Close the link popup if it is clicked off of:
@@ -844,6 +831,7 @@ document.body.addEventListener("mouseup", function() {
   }, 0);
 
 });
+
 function setText(el, text, pos, ignoreCursor, classes, href) {
 
   // There was a text selection that is being overridden; remove the text being overridden:
@@ -909,6 +897,7 @@ function setText(el, text, pos, ignoreCursor, classes, href) {
     setCrsrPos(el, { start: pos.start + 1, end: pos.start + 1 });
 
 }
+
 function setCrsrs(users) {
 
   // Check if a user has disconnected:
@@ -994,15 +983,6 @@ function setCrsrs(users) {
   }
 
 }
-
-
-
-
-
-
-
-
-
 
 function applyCSSStyle(clas, style) {
 
@@ -1338,6 +1318,7 @@ function setLink(el, link, pos, addLink, localChange) {
     }
   }
 }
+
 function undoOP(c, buf) {
 
   // Create and return a change that will undo whatever the passed in change changed:
@@ -1457,6 +1438,7 @@ function undoOP(c, buf) {
     break;
   }
 }
+
 function executeUndo() {
 
   // Undo the change:
@@ -1473,6 +1455,7 @@ function executeUndo() {
   lastKeyPress = getCurrentTime();
   pushChanges(lastKeyPress);
 }
+
 function redoOP(c, buf) {
 
   if (!buf)
@@ -1501,18 +1484,6 @@ function executeRedo() {
   lastKeyPress = getCurrentTime();
   pushChanges(lastKeyPress);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 async function pushChanges(t) {
 
@@ -1595,7 +1566,7 @@ function acquireMetaTag(el, type) {
 }
 
 function checkChanges(changesObj, t) {
-  
+
   // Orgainze the changes:
   let changes = [];
   for (let i in changesObj) {
@@ -1694,7 +1665,7 @@ function checkChanges(changesObj, t) {
 }
 
 function applyChngs(c, isUndoRedo) {
-  
+
   // Store the caret position and text content of the editor:
   let crsrPos = getCrsrPos(c.vertex);
   let text = document.getElementById(c.vertex).textContent;
@@ -1702,7 +1673,6 @@ function applyChngs(c, isUndoRedo) {
   // Remove the "\n" that is always present, but not actually able to be edited:
   text = (text[text.length - 1] === "\n") ? (text.substring(0, text.length - 1)) : text;
 
-  // Determine if a change should be applied in the location it was intended for, or if it should be moved somewhere else
   let transform = getTransformVals(c, text);
 
   // Apply the trasnsform:
@@ -1895,11 +1865,12 @@ function getTransformVals(c, t) {
   }
 
   return fitScores.transform;
+
 }
 
 function getMyFitScores(c, t, offset, weights) {
 
-  // Index is out of range 
+  // Index is out of range (note that characters can be inserted anywhere from 0 to t.length, hence why this is > t.length and not >= t.length):
   if (c.index.start + offset < 0 || c.index.end + offset > t.length)
     return 0;
 
@@ -1907,11 +1878,9 @@ function getMyFitScores(c, t, offset, weights) {
   let fitScore = {
     // Check the fit before the current offset index:
     before: (ifFit(t, c.index.start + offset - 1, c.surrounding.before) ? weights.before : 0),
-    
     // Check the fit of the content at/between the curent indexes (assuming there is content to check):
     at: (c.contentPre !== undefined && ifFit(t, { start: c.index.start + offset, end: c.index.end + offset }, c.contentPre) ? weights.at : 0),
-    
-    // Check the fit after the current offset index 
+    // Check the fit after the current offset index (note that we only need to add 1 to the offset if the action is "delete", or something similar):
     after: (ifFit(t, c.index.end + offset + ((c.contentPre !== undefined && c.index.start === c.index.end && c.contentPre !== "") ? 1 : 0), c.surrounding.after) ? weights.after : 0)
   };
 
@@ -1922,11 +1891,10 @@ function getMyFitScores(c, t, offset, weights) {
 function ifFit(t, i, compTo) {
 
   // Handle cases where only one index is being checked:
-  // "i" is the index itself; compare the character at that index to "compTo" 
   if (i.start === undefined)
     return ((i >= 0 && i < t.length) ? t[i] : false) === compTo;
 
-  // The start and end indexes are the same, and "compTo" is empty; this happens when "contentPre" in "replace" is empty; 
+  // The start and end indexes are the same, and "compTo" is empty; this happens when "contentPre" in "replace" is empty; this should always return true:
   if (i.start === i.end && compTo === "")
     return true;
 
@@ -1935,6 +1903,7 @@ function ifFit(t, i, compTo) {
     return ((i.start >= 0 && i.start < t.length) ? t[i.start] : false) === compTo;
 
   // Handle cases where a group of text (multiple indexes) are being checked:
+  // Grab the entire string of characters from "i.start" to "i.end" and compare them to "compTo":
   return t.substring(i.start, i.end) === compTo;
 }
 
@@ -2019,7 +1988,7 @@ function setCrsrPos(el, pos) {
 }
 
 function getSelectionPosition(pos) {
-  
+
   if (!document.activeElement)
     return;
 
@@ -2074,7 +2043,7 @@ function getCurrentTime() {
 }
 
 function stringToColor(str) {
-  
+
   // Start t on 1:
   let t = 1;
   for (let i = 0; i < str.length; i++) {
@@ -2096,7 +2065,7 @@ function stringToColor(str) {
   }
   return hex;
 }
-  
+
 function partition(arr, lo, hi, by) {
   let pivot = (by ? arr[hi][by] : arr[hi]);
   let i = lo;
@@ -2115,7 +2084,6 @@ function partition(arr, lo, hi, by) {
   arr[i] = t;
   return i;
 }
-
 function quicksort(arr, lo, hi, by) {
   if (lo < hi) {
     let p = partition(arr, lo, hi, by);
@@ -2129,7 +2097,7 @@ function copyObj(obj) {
 }
 
 function throttled(callback, delay) {
-  
+
   let runCallback = false;
   let wait = false;
   let timeout = () => {
