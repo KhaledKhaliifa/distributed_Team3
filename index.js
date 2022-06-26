@@ -223,8 +223,6 @@ function getActvStyles(el) {
   // No text is selected; get the style of the character before:
   if (caretPos.start === caretPos.end) {
     return (el.childNodes[caretPos.start - 1] && el.childNodes[caretPos.start - 1].classList) ? [...el.childNodes[caretPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
-
-  // Text is being selected; get the styles that apply to all characters in the selection:
   }
 }
 
@@ -296,46 +294,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
 
         setText(this, "", { start: crsrPos.start - (e.keyCode === 8 ? 1 : 0), end: crsrPos.end + (e.keyCode === 46 ? 1 : 0) });
 
-      // Handle Ctrl + Backspace / Delete:
       } 
-      else {
-
-        // Determine what index to delete up to:
-        let breakCharacters = " `~!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?\n".split("");
-        let initialIndex = crsrPos.start + (this.textContent[crsrPos.start + (e.keyCode === 8 ? -1 : 0)] === " " ? (e.keyCode === 8 ? -2 : 2) : (e.keyCode === 8 ? -1 : 1));
-        let i = initialIndex;
-        while (i > 0 && i < this.textContent.length - 1 && (breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? -1 : 0)]) === -1 && breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? 0 : -1)]) === -1 || breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? 0 : -1)]) !== -1 && breakCharacters.indexOf(this.textContent[i + (e.keyCode === 8 ? -1 : 0)]) !== -1)) {
-          i += (e.keyCode === 8 ? -1 : 1);
-        }
-
-        // Update active styles:
-        actvStyles = (this.childNodes[i] && this.childNodes[i].classList) ? [...this.childNodes[i].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
-        actvtBtns();
-
-        let start = Math.min(crsrPos.start, i);
-        let end = Math.max(crsrPos.start, i);
-
-        buffer({
-          vertex: "editor",
-          action: "replace",
-          contentPre: this.textContent.substring(start, end),
-          content: "",
-          index: {
-            start: start,
-            end: end
-          },
-          surrounding: {
-            before: this.textContent[start - 1] || false,
-            after: (end === this.textContent.length - 1 && this.textContent[end] === "\n") ? false : (this.textContent[end] || false)
-          }
-        });
-
-        lastKeyPress = getCurrentTime();
-        pushChanges(lastKeyPress);
-
-        setText(this, "", { start: start, end: end });
-
-      }
     // Selection:
     } else {
 
