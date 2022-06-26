@@ -1702,7 +1702,13 @@ function applyChngs(c, isUndoRedo) {
   // Remove the "\n" that is always present, but not actually able to be edited:
   text = (text[text.length - 1] === "\n") ? (text.substring(0, text.length - 1)) : text;
 
-  // if changes were made between the time the other user sent the change and when this client recieved it:
+  // Determine if a change should be applied in the location it was intended for, or if it should be moved somewhere else
+  let transform = getTransformVals(c, text);
+
+  // Apply the trasnsform:
+  c.index.start += transform;
+  c.index.end += transform;
+
   if (!isUndoRedo) {
 
     // Apply undo/redo to local stack:
@@ -1843,6 +1849,93 @@ function applyChngs(c, isUndoRedo) {
     if (!document.activeElement.classList.contains("link-creator-element"))
       set(ref(db, `users/${uid}/cursor`), getCrsrPos(document.getElementById(c.vertex)));
   }, 0);
+}
+
+function getTransformVals(c, t) {
+
+  // Setup weights:
+  let weights = { before: 1, at: c.contentPre !== undefined ? 3 : 0, after: 1 };
+
+  // Setup the FitScores object:
+  let fitScores = {
+    before: {
+      scores: [],
+      max: -1
+    },
+    at: 0,
+    after: {
+      scores: [],
+      max: -1
+    },
+    transform: 0
+  };
+
+  // Check to see how good of a fit the intended position is:
+  fitScores.at = getMyFitScores(c, t, 0, weights);
+
+  // Check how good of a fit the positions before and after the intended position are:
+  let reach = t.length;
+  for (let i = 1; i < reach + 1; i++) {
+    fitScores.before.scores.push(getMyFitScores(c, t, -i, weights));
+    fitScores.after.scores.push(getMyFitScores(c, t, i, weights));
+  }
+
+  // Determine the ideal scores for moving the text to be inserted before / after:
+  fitScores.before.max = Math.max(...fitScores.before.scores);
+  fitScores.after.max = Math.max(...fitScores.after.scores);
+
+  // Get the transform (if moving the character achieves a higher score than where it is currently placed):
+  if (fitScores.at !== (weights.before + weights.at + weights.after) && (fitScores.before.max > fitScores.at || fitScores.after.max > fitScores.at)) {
+    
+    if (fitScores.before.max > fitScores.after.max || fitScores.before.max === fitScores.after.max && fitScores.before.scores.indexOf(fitScores.before.max) < fitScores.after.scores.indexOf(fitScores.after.max))
+      fitScores.transform = -fitScores.before.scores.indexOf(fitScores.before.max) - 1; // Subtract 1 since arrays start at 0
+
+    if (fitScores.before.max < fitScores.after.max || fitScores.before.max === fitScores.after.max && fitScores.after.scores.indexOf(fitScores.after.max) <= fitScores.before.scores.indexOf(fitScores.before.max))
+      fitScores.transform = fitScores.after.scores.indexOf(fitScores.after.max) + 1; // Add 1 since arrays start at 0
+  }
+
+  return fitScores.transform;
+}
+
+function getMyFitScores(c, t, offset, weights) {
+
+  // Index is out of range 
+  if (c.index.start + offset < 0 || c.index.end + offset > t.length)
+    return 0;
+
+  // Calculate the FitScore at the provided index (with offset included):
+  let fitScore = {
+    // Check the fit before the current offset index:
+    before: (ifFit(t, c.index.start + offset - 1, c.surrounding.before) ? weights.before : 0),
+    
+    // Check the fit of the content at/between the curent indexes (assuming there is content to check):
+    at: (c.contentPre !== undefined && ifFit(t, { start: c.index.start + offset, end: c.index.end + offset }, c.contentPre) ? weights.at : 0),
+    
+    // Check the fit after the current offset index 
+    after: (ifFit(t, c.index.end + offset + ((c.contentPre !== undefined && c.index.start === c.index.end && c.contentPre !== "") ? 1 : 0), c.surrounding.after) ? weights.after : 0)
+  };
+
+  // Return the calculated FitScore:
+  return fitScore.before + fitScore.at + fitScore.after;
+}
+
+function ifFit(t, i, compTo) {
+
+  // Handle cases where only one index is being checked:
+  // "i" is the index itself; compare the character at that index to "compTo" 
+  if (i.start === undefined)
+    return ((i >= 0 && i < t.length) ? t[i] : false) === compTo;
+
+  // The start and end indexes are the same, and "compTo" is empty; this happens when "contentPre" in "replace" is empty; 
+  if (i.start === i.end && compTo === "")
+    return true;
+
+  // The start and end indexes are the same; compare the character at "i.start" to "compTo":
+  if (i.start === i.end)
+    return ((i.start >= 0 && i.start < t.length) ? t[i.start] : false) === compTo;
+
+  // Handle cases where a group of text (multiple indexes) are being checked:
+  return t.substring(i.start, i.end) === compTo;
 }
 
 async function acquireData(path, err) {
