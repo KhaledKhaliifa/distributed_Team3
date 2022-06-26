@@ -46,6 +46,7 @@ window.addEventListener("load", async function() {
   // Get the stored text for the editor:
   let content = (await acquireData("vertexes/editor/content", function(err) { console.error(err); })) || { vertex: "editor", text: "\n", style: { bold: "", italic: "", underline: "", strikethrough: "" }, uid: "", updated: 0 };
   let userData = (await acquireData("users", function(err) { console.error(err); })) || {};
+  let editorMessage;
   if(content.text[content.text.length - 1] !== "\n"){
     editorMessage = "\n";
   }
@@ -217,12 +218,12 @@ function actvtBtns() {
 
 function getActvStyles(el) {
 
-  let caretPos = getCrsrPos(el);
+  let cursorPos = getCrsrPos(el);
 
   // Determine what the current active styles should be:
   // No text is selected; get the style of the character before:
-  if (caretPos.start === caretPos.end) {
-    return (el.childNodes[caretPos.start - 1] && el.childNodes[caretPos.start - 1].classList) ? [...el.childNodes[caretPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+  if (cursorPos.start === cursorPos.end) {
+    return (el.childNodes[cursorPos.start - 1] && el.childNodes[cursorPos.start - 1].classList) ? [...el.childNodes[cursorPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
   }
 }
 
