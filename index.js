@@ -131,13 +131,12 @@ window.addEventListener("load", async function() {
     // Check if a user is idle or should be kicked:
     for (let u in users) {
 
-      // Set status to idle if no changes have been made for more than 3 minutes:
-      if (users[u].status === "active" && getCurrentTime() - users[u].changed >= 3 * 60 * 1000) {
+      // Set status to idle if no changes have been made for more than 5 minutes:
+      if (users[u].status === "active" && getCurrentTime() - users[u].changed >= 5 * 60 * 1000) {
         set(ref(db, `users/${u}/status`), "idle");
       }
 
-      // Remove user from the database if they have not recieved an update for more than 5 minutes
-      if (!users[u].status || getCurrentTime() - users[u].updated >= 5 * 60 * 1000) {
+      if (!users[u].status || getCurrentTime() - users[u].updated >= 10 * 60 * 1000) {
         remove(ref(db, `users/${u}`));
       }
     }
@@ -196,7 +195,7 @@ async function sync(el, content) {
       syncCount++;
 
       // Disconnect the user if sync is unable to fix the issue:
-      if (syncCount >= 30)
+      if (syncCount >= 10)
         remove(ref(db, `users/${uid}`));
     }
 
@@ -229,6 +228,17 @@ function getActvStyles(el) {
     return (el.childNodes[caretPos.start - 1] && el.childNodes[caretPos.start - 1].classList) ? [...el.childNodes[caretPos.start - 1].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
 
   // Text is being selected; get the styles that apply to all characters in the selection:
+  } else {
+
+    // Get the styles of the first character in the selection:
+    let styles = (el.childNodes[caretPos.start] && el.childNodes[caretPos.start].classList) ? [...el.childNodes[caretPos.start].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+
+    // Remove the style if it doesn't apply to all of the characters in the selection:
+    for (let i = caretPos.start + 1; i < caretPos.end; i++) {
+      let indexedStyles = (el.childNodes[i] && el.childNodes[i].classList) ? [...el.childNodes[i].classList].filter(cl => (cl.indexOf("cursor") === -1 && cl.indexOf("link") === -1 && cl.indexOf("selected") === -1)) : [];
+      styles = styles.filter(cl => indexedStyles.indexOf(cl) !== -1);
+    }
+    return styles;
   }
 }
 
@@ -296,7 +306,7 @@ document.getElementById("editor").addEventListener("keydown", async function(e) 
         pushChanges(lastKeyPress);
 
         setText(this, "", { start: crsrPos.start - (e.keyCode === 8 ? 1 : 0), end: crsrPos.end + (e.keyCode === 46 ? 1 : 0) });
-      }
+      } 
     // Selection:
     } else {
 
@@ -1856,7 +1866,6 @@ function getTransformVals(c, t) {
 
   // Get the transform (if moving the character achieves a higher score than where it is currently placed):
   if (fitScores.at !== (weights.before + weights.at + weights.after) && (fitScores.before.max > fitScores.at || fitScores.after.max > fitScores.at)) {
-    
     if (fitScores.before.max > fitScores.after.max || fitScores.before.max === fitScores.after.max && fitScores.before.scores.indexOf(fitScores.before.max) < fitScores.after.scores.indexOf(fitScores.after.max))
       fitScores.transform = -fitScores.before.scores.indexOf(fitScores.before.max) - 1; // Subtract 1 since arrays start at 0
 
