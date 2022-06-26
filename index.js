@@ -1456,7 +1456,22 @@ function undoOP(c, buf) {
     break;
   }
 }
+function executeUndo() {
 
+  // Undo the change:
+  buffer(undoOP(stack.undo[stack.undo.length - 1], true), true);
+  applyChngs(undoOP(stack.undo[stack.undo.length - 1]), true);
+
+  // Push the undone change to the redo stack:
+  stack.redo.push(stack.undo[stack.undo.length - 1]);
+
+  // Clear the undone change from the undo stack:
+  stack.undo.pop();
+
+  // Push changes to Firebase:
+  lastKeyPress = getCurrentTime();
+  pushChanges(lastKeyPress);
+}
 
 
 
